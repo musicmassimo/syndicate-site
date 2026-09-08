@@ -12,18 +12,23 @@ const links = [
 export default function NavBar() {
   return (
     <header className="border-b border-white/10">
-      <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <NavLink to="/" className="text-lg font-bold tracking-widest">
-          SYNDICATE
+      <nav className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-5">
+        <NavLink
+          to="/"
+          className="text-sm font-bold uppercase tracking-[0.35em] text-white"
+        >
+          Syndicate
         </NavLink>
-        <ul className="flex gap-6 text-sm uppercase tracking-wide">
+        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.2em]">
           {links.map(({ to, label, end }) => (
             <li key={to}>
               <NavLink
                 to={to}
                 end={end}
                 className={({ isActive }) =>
-                  isActive ? 'text-white' : 'text-white/50 hover:text-white'
+                  `transition-opacity hover:opacity-70 ${
+                    isActive ? 'text-[#ff9d4d]' : 'text-white/50'
+                  }`
                 }
               >
                 {label}

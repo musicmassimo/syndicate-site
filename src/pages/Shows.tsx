@@ -1,3 +1,8 @@
 export default function Shows() {
-  return <h1 className="text-4xl font-bold tracking-tight">Shows</h1>
+  return (
+    <section className="syn-section" style={{ paddingTop: 56 }}>
+      <p className="syn-heading">Shows</p>
+      <p className="syn-body">Tour dates announced soon.</p>
+    </section>
+  )
 }

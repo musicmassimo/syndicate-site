@@ -1,10 +1,12 @@
 @import 'tailwindcss';
 
-/* SYNDICATE base theme — near-black dark canvas.
-   Bold red-to-orange gradient accent + typography to be layered on next. */
+/* SYNDICATE visual identity — near-black canvas, red→orange gradient accent,
+   blend-mode stencil header. Ported from the band's original single-page site
+   and adapted to this project's multi-page structure. */
 @theme {
-  --color-canvas: #0a0a0b;
-  --color-canvas-elevated: #141416;
+  --color-canvas: #000000;
+  --color-accent-red: #ff3b3b;
+  --color-accent-orange: #ff9d4d;
 }
 
 html,
@@ -15,15 +17,211 @@ body,
 
 body {
   margin: 0;
-  background-color: var(--color-canvas);
-  color: #ededed;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  background-color: #000;
+  color: #fff;
+  font-family: 'Space Grotesk', monospace;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Stencil header ------------------------------------------------------
+   The photo sits underneath; the plate above it is filled with near-black
+   and carries white letterforms, then blended down with mix-blend-mode:
+   darken. darken keeps min(photo, plate) per channel:
+     - over the #17130f plate the plate always wins  -> dark surround
+     - inside the #fff letters the photo always wins -> photo in the type
+   isolation keeps the blend off the page background; without mix-blend-mode
+   support the plate stays opaque — white type on near-black, still legible. */
+.syn-hero {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  overflow: hidden;
+  background: #17130f;
+}
+.syn-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The 3:2 photo is cropped to a short full-width band; the players sit
+     ~39% down the frame, so bias the crop to 35% to centre on them. */
+  object-position: center 35%;
+  z-index: 0;
+}
+.syn-hero-plate {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(260px, 34vw, 460px);
+  padding: 56px 12px 0;
+  background: #17130f;
+  mix-blend-mode: darken;
+}
+.syn-hero-title {
+  margin: 0;
+  font-family: 'Archivo Black', 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(44px, 13.5vw, 200px);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  /* Slanted display type — skew rather than synthetic italic so the heavy
+     letterforms stay crisp and the white fill (which the photo blends
+     through) is untouched. */
+  transform: skewX(-8deg);
+  color: #fff;
+}
+
+/* Mobile: the smaller cap stops the nowrap word overflowing a 375px
+   viewport, and zeroing the top padding re-centres the letterforms so the
+   crop lines up with the band. */
+@media (max-width: 767px) {
+  .syn-hero-plate {
+    padding-top: 0;
+    min-height: 240px;
+  }
+  .syn-hero-title {
+    font-size: clamp(34px, 13vw, 56px);
+  }
+  .syn-hero-img {
+    object-position: center top;
+  }
+}
+
+/* Fade/scale the header in on load. Replaces the original's GSAP reveal —
+   same effect, no dependency. */
+@keyframes syn-hero-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.syn-hero {
+  animation: syn-hero-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .syn-hero {
+    animation: none;
+  }
+}
+
+/* ---- Section primitives ------------------------------------------------- */
+.syn-section {
+  padding: 0 24px 80px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Gradient text needs a real fallback: the solid colour is declared first so
+   the label stays visible without background-clip support. */
+.syn-heading {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 32px;
+  color: #ff7a42;
+}
+@supports ((background-clip: text) or (-webkit-background-clip: text)) {
+  .syn-heading {
+    background-image: linear-gradient(90deg, #ff3b3b 0%, #ff9d4d 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    width: fit-content;
+  }
+}
+
+.syn-body {
+  font-size: 13px;
+  line-height: 1.9;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.03em;
+}
+
+.syn-rule {
+  height: 1px;
+  border: 0;
+  margin: 0 auto 60px;
+  max-width: 800px;
+  background: linear-gradient(
+    90deg,
+    #ff3b3b 0%,
+    #ff9d4d 60%,
+    rgba(255, 157, 77, 0) 100%
+  );
+  opacity: 0.5;
+}
+
+.syn-btn {
+  display: inline-block;
+  padding: 14px 28px;
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: #140503;
+  background: linear-gradient(100deg, #ff3b3b 0%, #ff9d4d 100%);
+  transition: opacity 0.3s;
+}
+.syn-btn:hover {
+  opacity: 0.85;
+}
+
+.syn-link {
+  color: #ff9d4d;
+  text-decoration: none;
+  transition: opacity 0.3s;
+  overflow-wrap: anywhere;
+}
+.syn-link:hover {
+  opacity: 0.75;
+}
+
+.syn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.syn-row > :last-child {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .syn-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+.syn-video {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid rgba(255, 157, 77, 0.35);
+  background: #0a0a0a;
+}
+.syn-video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.syn-audio {
+  width: 100%;
+  margin-top: 10px;
 }
