@@ -117,9 +117,22 @@ export default function Home() {
     }
 
     // PHASE 1: spell SYNDICATE once, left to right — exactly ONE position
-    // scrambles at a time (in a randomly chosen row) on an even cadence, then
-    // locks before the next starts.
-    const rowFor = Array.from({ length: N }, () => (Math.random() * LINES) | 0)
+    // scrambles at a time on an even cadence, then locks before the next
+    // starts. Source rows: every row used once before any repeat, never the
+    // same row twice consecutively, usage spread as evenly as 9-over-5 allows.
+    const shuffle = (a: number[]) => {
+      for (let i = a.length; i-- > 1; ) {
+        const j = (Math.random() * (i + 1)) | 0
+        ;[a[i], a[j]] = [a[j], a[i]]
+      }
+      return a
+    }
+    const rowFor: number[] = []
+    while (rowFor.length < N)
+      for (const r of shuffle([...Array(LINES).keys()])) {
+        if (rowFor.length >= N) break
+        if (r !== rowFor[rowFor.length - 1]) rowFor.push(r)
+      }
     const p1 = { v: 0 }
     let spelled = 0
     const tickPhase1 = () => {
@@ -199,7 +212,6 @@ export default function Home() {
           scheduleGlitch()
         },
       })
-      const OVERLAP = 0.3
       tl.set('.syn-hero-intro', { autoAlpha: 1 })
         .set(p2spans, { opacity: 0 })
         .to('.syn-hero-intro', {
@@ -214,16 +226,20 @@ export default function Home() {
           { v: N, duration: N * 0.6, ease: 'none', onUpdate: tickPhase1 },
           0.6,
         )
-        // Phase 2 crossfades in just before phase 1's last lock — no hard cut.
-        .addLabel('p2', `>-${OVERLAP}`)
-        .to({}, { duration: 2 + OVERLAP, onUpdate: tickHold }, 'p2')
+        // Hold: the spelled word sits completely static for 2s — no scramble
+        // anywhere, and the photo is parked at rest.
+        .set('.syn-hero-img', { clearProps: 'transform' })
+        .to({}, { duration: 2 })
+        // Phase 2: the remaining slots scramble for 2.5s, crossfading in.
+        .addLabel('p2')
+        .to({}, { duration: 2.5, onUpdate: tickHold }, 'p2')
         .to(
           p2spans,
           {
             opacity: 1,
-            duration: 0.7,
+            duration: 0.6,
             ease: 'power2.out',
-            stagger: { amount: 0.5, from: 'random' },
+            stagger: { amount: 0.4, from: 'random' },
           },
           'p2',
         )
