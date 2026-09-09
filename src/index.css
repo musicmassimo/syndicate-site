@@ -596,6 +596,24 @@ body {
   font-family: inherit;
   align-self: flex-start;
 }
+.syn-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
 .syn-form .syn-btn {
   font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.syn-form-msg {
+  font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  margin: -8px 0 0;
+}
+.syn-form-msg--ok {
+  color: #7bd88f;
+}
+.syn-form-msg--error {
+  color: #ff7a42;
 }

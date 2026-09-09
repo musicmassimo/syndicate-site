@@ -128,23 +128,52 @@ export default function Home() {
     setBookingForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleBookingSubmit(e: React.FormEvent) {
+  // Submit posts JSON to send-inquiry.php, which relays via Brevo server-side.
+  // Falls back to a "email us directly" message on any failure.
+  const [submit, setSubmit] = useState<{
+    status: 'idle' | 'sending' | 'ok' | 'error'
+    message?: string
+  }>({ status: 'idle' })
+
+  async function handleBookingSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const subject = `Booking inquiry — ${bookingForm.eventType}`
-    const bodyLines = [
-      `Name: ${bookingForm.name}`,
-      `Email: ${bookingForm.email}`,
-      `Event type: ${bookingForm.eventType}`,
-      `Date: ${bookingForm.eventDate || 'TBD'}`,
-      `Location / venue: ${bookingForm.location || 'TBD'}`,
-      `Budget: ${bookingForm.budget || 'Not specified'}`,
-      '',
-      bookingForm.details,
-    ]
-    const mailto = `mailto:syndicatebookings@massimopaparello.com?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(bodyLines.join('\n'))}`
-    window.location.href = mailto
+    setSubmit({ status: 'sending' })
+    try {
+      const res = await fetch('/send-inquiry.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingForm),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.ok) {
+        setSubmit({
+          status: 'ok',
+          message: 'Thanks — your inquiry is on its way. We’ll be in touch soon.',
+        })
+        setBookingForm({
+          name: '',
+          email: '',
+          eventType: EVENT_TYPES[0],
+          eventDate: '',
+          location: '',
+          budget: '',
+          details: '',
+        })
+      } else {
+        setSubmit({
+          status: 'error',
+          message:
+            data.error ||
+            'Something went wrong. Please email syndicatebookings@massimopaparello.com directly.',
+        })
+      }
+    } catch {
+      setSubmit({
+        status: 'error',
+        message:
+          'Network error. Please email syndicatebookings@massimopaparello.com directly.',
+      })
+    }
   }
 
   // Mount at the top so the hero intro plays from a clean slate and the About
@@ -948,9 +977,22 @@ export default function Home() {
               onChange={(e) => updateBooking('details', e.target.value)}
             />
           </div>
-          <button type="submit" className="syn-btn">
-            Send inquiry
+          <button
+            type="submit"
+            className="syn-btn"
+            disabled={submit.status === 'sending'}
+          >
+            {submit.status === 'sending' ? 'Sending…' : 'Send inquiry'}
           </button>
+          {submit.message && (
+            <p
+              className={`syn-form-msg syn-form-msg--${submit.status}`}
+              role="status"
+              aria-live="polite"
+            >
+              {submit.message}
+            </p>
+          )}
         </form>
       </section>
 
