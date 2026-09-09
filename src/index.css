@@ -217,6 +217,11 @@ body {
   margin-bottom: 32px;
   color: #ff7a42;
 }
+.syn-heading--lg {
+  font-size: 26px;
+  letter-spacing: 0.12em;
+}
+
 @supports ((background-clip: text) or (-webkit-background-clip: text)) {
   .syn-heading {
     background-image: linear-gradient(90deg, #ff3b3b 0%, #ff9d4d 100%);
@@ -555,6 +560,7 @@ body {
 }
 
 .syn-label {
+  font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -565,11 +571,16 @@ body {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #fff;
-  font-family: inherit;
+  font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 13px;
   padding: 10px 12px;
   outline: none;
   transition: border-color 0.3s;
+}
+.syn-input option {
+  font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
+  background: #000;
+  color: #fff;
 }
 .syn-input:focus {
   border-color: #ff9d4d;
@@ -584,4 +595,7 @@ body {
   cursor: pointer;
   font-family: inherit;
   align-self: flex-start;
+}
+.syn-form .syn-btn {
+  font-family: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
 }

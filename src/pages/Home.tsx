@@ -104,6 +104,7 @@ export default function Home() {
   const aboutRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const jukeboxRef = useRef<HTMLElement>(null)
+  const bookHeadingRef = useRef<HTMLParagraphElement>(null)
   // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
   // The banner video loads (and autoplays) only once the strip scrolls in.
@@ -685,6 +686,50 @@ export default function Home() {
     return () => io.disconnect()
   }, [videoLive])
 
+  // Scramble the "Book Syndicate" heading in over 2s, once it scrolls
+  // into view. Same glyph-settle technique as the About/Lineup text.
+  useEffect(() => {
+    const el = bookHeadingRef.current
+    if (prefersReducedMotion() || !el) return
+
+    const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/<>*+=:·'
+    const text = el.textContent ?? ''
+    const DURATION = 2000
+    let raf = 0
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        io.disconnect()
+        const start = performance.now()
+        const tick = (now: number) => {
+          const p = Math.min((now - start) / DURATION, 1)
+          if (p >= 1) {
+            el.textContent = text
+            return
+          }
+          const settled = p * text.length * 1.12
+          let out = ''
+          for (let i = 0; i < text.length; i++) {
+            out +=
+              i <= settled || text[i] === ' '
+                ? text[i]
+                : GLYPHS[(Math.random() * GLYPHS.length) | 0]
+          }
+          el.textContent = out
+          raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+      },
+      { threshold: 0.4 },
+    )
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
   const reduced = prefersReducedMotion()
 
   return (
@@ -822,7 +867,7 @@ export default function Home() {
       <hr className="syn-rule" />
 
       <section className="syn-section" id="book">
-        <p className="syn-heading">Book Syndicate</p>
+        <p className="syn-heading syn-heading--lg" ref={bookHeadingRef}>Booking</p>
         <form className="syn-form" onSubmit={handleBookingSubmit}>
           <div className="syn-field">
             <label className="syn-label" htmlFor="book-name">Name</label>
@@ -897,6 +942,7 @@ export default function Home() {
               id="book-details"
               className="syn-input syn-textarea"
               rows={4}
+              required
               placeholder="Set length, timing, anything else we should know"
               value={bookingForm.details}
               onChange={(e) => updateBooking('details', e.target.value)}
