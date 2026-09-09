@@ -27,6 +27,7 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const aboutRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
+  const jukeboxRef = useRef<HTMLElement>(null)
   // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
 
@@ -606,6 +607,32 @@ export default function Home() {
     if (introDone) ScrollTrigger.refresh()
   }, [introDone])
 
+  // Ease the jukebox strip's ground from the black of the Lineup section up to
+  // its sage green as it scrolls in — no abrupt colour cut. Reduced motion
+  // keeps the static sage from CSS.
+  useEffect(() => {
+    if (prefersReducedMotion()) return
+    const strip = jukeboxRef.current
+    if (!strip) return
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        strip,
+        { backgroundColor: '#000000' },
+        {
+          backgroundColor: '#bccfa4',
+          ease: 'none',
+          scrollTrigger: {
+            trigger: strip,
+            start: 'top bottom',
+            end: 'top 55%',
+            scrub: true,
+          },
+        },
+      )
+    }, strip)
+    return () => ctx.revert()
+  }, [])
+
   const reduced = prefersReducedMotion()
 
   return (
@@ -713,7 +740,7 @@ export default function Home() {
       </section>
 
       {/* Retro jukebox strip: band photo left, Win95 media player right. */}
-      <section className="syn-jukebox">
+      <section className="syn-jukebox" ref={jukeboxRef}>
         <img
           className="syn-jukebox-photo"
           src="/images/syndicate-photo-8.png"

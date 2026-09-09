@@ -342,16 +342,18 @@ body {
 }
 
 /* ---- Retro jukebox strip --------------------------------------------------
-   A contained black band: band photo on the left (fits the strip height, not
-   full-bleed), the Win95 media player on the right. The player keeps its own
-   Windows 95 chrome; we only place its outer window on the strip. */
+   A contained band: photo on the left (fits the strip height, not full-bleed),
+   the Win95 media player on the right, which keeps its own Windows 95 chrome.
+   The sage ground is sampled from syndicate-photo-8.png's halftone paper; JS
+   (see Home.tsx) eases it up from black as the strip scrolls in from the
+   black Lineup section above. #bccfa4 is the no-JS / reduced-motion value. */
 .syn-jukebox {
   display: flex;
   align-items: center;
   justify-content: space-evenly;
   gap: clamp(20px, 5vw, 56px);
   flex-wrap: wrap;
-  background: #000;
+  background-color: #bccfa4;
   padding: clamp(28px, 6vw, 56px) 24px;
 }
 .syn-jukebox-photo {
@@ -360,13 +362,14 @@ body {
   aspect-ratio: 2000 / 1326;
   max-width: 100%;
   object-fit: contain;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }
 .syn-player {
   width: 320px;
   max-width: 100%;
-  /* Lift the grey window off the black strip without touching its chrome. */
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15), 0 18px 40px rgba(0, 0, 0, 0.6);
+  /* Define the grey window's edge against the sage ground, without touching
+     its chrome. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28), 0 14px 32px rgba(0, 0, 0, 0.3);
 }
 
 .syn-btn {
