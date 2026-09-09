@@ -124,11 +124,38 @@ export default function Home() {
     const applyGap = () => plates.forEach((el) => (el.style.rowGap = `${gp.v}px`))
     applyGap()
 
+    // Occasional post-settle glitch: every 4-10s, re-scramble one random letter
+    // in one random row for <300ms, then set it back. One pending timeout at a
+    // time (`timer`), cleared on unmount.
+    let timer = 0
+    const scheduleGlitch = () => {
+      timer = window.setTimeout(runGlitch, 4000 + Math.random() * 6000)
+    }
+    const runGlitch = () => {
+      const ln = lines[(Math.random() * LINES) | 0]
+      const k = (Math.random() * N) | 0
+      const pool = poolAt[k]
+      const spans = ln.rows.map((row) => row[k])
+      let left = 4 + ((Math.random() * 3) | 0) // 4-6 frames * 45ms = 180-270ms
+      const cycle = () => {
+        if (left-- > 0) {
+          const ch = pool[(Math.random() * pool.length) | 0]
+          spans.forEach((s) => (s.textContent = ch))
+          timer = window.setTimeout(cycle, 45)
+        } else {
+          spans.forEach((s) => (s.textContent = WORD[k]))
+          scheduleGlitch()
+        }
+      }
+      cycle()
+    }
+
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         onComplete: () => {
           img.style.transform = ''
           setIntroDone(true)
+          scheduleGlitch()
         },
       })
       tl.set('.syn-hero-intro', { autoAlpha: 1 })
@@ -153,6 +180,7 @@ export default function Home() {
         )
     }, heroRef)
     return () => {
+      clearTimeout(timer)
       ctx.revert()
       settles.forEach((t) => t.kill())
     }
