@@ -1,0 +1,19 @@
+# Client-side routing for the React app: anything that isn't a real file or
+# directory falls through to index.html so react-router can handle the path.
+#
+# The first rule is the exception: any URL ending in .php is left alone so it
+# reaches PHP directly (send-inquiry.php) instead of being rewritten to the SPA
+# shell. Real static files (assets, images, the EPK) are already served as-is by
+# the !-f / !-d guard below.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # .php files execute directly — never rewritten to the app shell.
+  RewriteRule \.php$ - [L]
+
+  # SPA fallback for everything else that doesn't map to a real file/dir.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
