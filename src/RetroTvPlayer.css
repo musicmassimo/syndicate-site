@@ -35,11 +35,17 @@
 }
 
 /* ---- Cabinet ------------------------------------------------------------- */
+/* Fluid up to 720px, then everything inside is sized in `vw`/clamp so the whole
+   unit scales down proportionally on narrower viewports (see the 768px block
+   below); height is content-driven. */
 .tv-cabinet {
   display: flex;
+  width: 100%;
+  max-width: 720px;
+  height: auto;
   gap: clamp(12px, 2.5vw, 24px);
   padding: clamp(14px, 3vw, 26px);
-  border-radius: 18px;
+  border-radius: clamp(12px, 2.4vw, 18px);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 22%),
     repeating-linear-gradient(
@@ -381,6 +387,23 @@
   outline-offset: 3px;
 }
 
+/* ---- Responsive: tighten the whole cabinet proportionally below 768px --- */
+@media (max-width: 768px) {
+  .tv-cabinet {
+    gap: clamp(8px, 1.8vw, 16px);
+    padding: clamp(9px, 2vw, 16px);
+    border-radius: clamp(10px, 2vw, 14px);
+  }
+  .tv-screen-bezel {
+    padding: clamp(8px, 2vw, 14px);
+  }
+  .tv-controls {
+    flex-basis: clamp(60px, 12vw, 96px);
+    gap: clamp(8px, 2vw, 14px);
+    padding: clamp(7px, 1.6vw, 12px) 4px;
+  }
+}
+
 /* ---- Responsive: drop the control panel under the screen on phones ----- */
 @media (max-width: 560px) {
   .tv-cabinet {
@@ -397,6 +420,25 @@
   }
   .power-button {
     margin-top: 0;
+  }
+}
+
+/* ---- Responsive: hand the screen as much room as possible on small phones */
+@media (max-width: 499px) {
+  .tv-cabinet {
+    flex-direction: column;
+  }
+  .tv-controls {
+    padding: 5px 4px;
+    gap: clamp(6px, 2.5vw, 12px);
+  }
+  .speaker-grille {
+    flex-basis: 40%;
+    padding: 4px 6px;
+    gap: 3px;
+  }
+  .grille-slat {
+    height: 3px;
   }
 }
 
