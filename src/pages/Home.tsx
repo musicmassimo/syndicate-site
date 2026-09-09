@@ -725,7 +725,7 @@ export default function Home() {
       </section>
 
       {/* Retro jukebox strip: right-to-left photo marquee background under a
-          dark scrim, band photo left, Win95 media player right. */}
+          dark scrim, Win95 media player on top. */}
       <section className="syn-jukebox">
         <div className="syn-jukebox-marquee" aria-hidden="true">
           <div className="syn-jukebox-marquee-track">
@@ -742,15 +742,6 @@ export default function Home() {
           </div>
         </div>
         <div className="syn-jukebox-scrim" aria-hidden="true" />
-        <img
-          className="syn-jukebox-photo"
-          src="/images/syndicate-photo-8.png"
-          alt=""
-          aria-hidden="true"
-          width={2000}
-          height={1326}
-          decoding="async"
-        />
         <RetroPlayer />
       </section>
 

@@ -344,15 +344,13 @@ body {
 /* ---- Retro jukebox strip --------------------------------------------------
    A contained black band. Background: a right-to-left photo marquee (3 photos
    rendered twice, translated -50% on a CSS loop for a seamless endless strip)
-   under a dark scrim for contrast. Foreground: band photo on the left, Win95
-   media player on the right with its own chrome. */
+   under a dark scrim for contrast. Foreground: the Win95 media player, which
+   keeps its own chrome. */
 .syn-jukebox {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
-  gap: clamp(20px, 5vw, 56px);
-  flex-wrap: wrap;
+  justify-content: center;
   background-color: #000;
   padding: clamp(28px, 6vw, 56px) 24px;
   overflow: hidden;
@@ -392,17 +390,6 @@ body {
   z-index: 1;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.62);
-}
-.syn-jukebox-photo {
-  position: relative;
-  z-index: 2;
-  height: clamp(180px, 34vw, 280px);
-  width: auto;
-  aspect-ratio: 2000 / 1326;
-  max-width: 100%;
-  object-fit: contain;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 0 30px 6px rgba(0, 0, 0, 0.6);
 }
 .syn-player {
   position: relative;
