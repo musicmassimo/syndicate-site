@@ -14,13 +14,42 @@ export default function Home() {
   // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
 
-  // Power-on intro: hold on black, then lift the black overlay while the
-  // stencil settles from a slight scale. gsap.context() scopes selectors to
-  // the hero and its revert() kills the timeline + clears inline styles.
+  // Power-on intro (once, skipped for reduced motion): hold on black, lift the
+  // overlay, then run a code-cracking scramble on the title — each slot
+  // flickers through random glyphs until it locks to its final letter, left to
+  // right, 0.7s apart. gsap.context().revert() tears the timeline down; there
+  // are no timers of our own to clear.
   useEffect(() => {
-    if (prefersReducedMotion()) return
+    if (prefersReducedMotion() || !heroRef.current) return
+    const titles =
+      heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title')
+    const WORD = 'SYNDICATE'
+    const POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/<>*'
+    const p = { locked: 0 }
+    let lastFlip = 0
+    // Each glyph goes in a fixed-width slot so the block can't reflow as
+    // characters cycle — only the glyph inside each slot changes.
+    const esc = (c: string) =>
+      c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '&' ? '&amp;' : c
+    const scramble = () => {
+      const now = performance.now()
+      if (now - lastFlip < 80) return // ~12 glyph changes/sec, not per-frame
+      lastFlip = now
+      let html = ''
+      for (let i = 0; i < WORD.length; i++) {
+        const c = i < p.locked ? WORD[i] : POOL[(Math.random() * POOL.length) | 0]
+        html += `<span class="syn-slot">${esc(c)}</span>`
+      }
+      titles.forEach((el) => (el.innerHTML = html))
+    }
+
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ onComplete: () => setIntroDone(true) })
+      const tl = gsap.timeline({
+        onComplete: () => {
+          titles.forEach((el) => (el.textContent = WORD))
+          setIntroDone(true)
+        },
+      })
       tl.set('.syn-hero-intro', { autoAlpha: 1 })
         .to('.syn-hero-intro', {
           autoAlpha: 0,
@@ -28,10 +57,15 @@ export default function Home() {
           ease: 'power2.inOut',
           delay: 0.45,
         })
-        .from(
-          '.syn-hero-title',
-          { scale: 1.05, duration: 1.6, ease: 'power3.out' },
-          0.45,
+        .to(
+          p,
+          {
+            locked: WORD.length,
+            duration: WORD.length * 0.7,
+            ease: `steps(${WORD.length})`,
+            onUpdate: scramble,
+          },
+          0.6,
         )
     }, heroRef)
     return () => ctx.revert()
