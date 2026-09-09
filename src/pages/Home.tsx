@@ -19,27 +19,32 @@ const ABOUT_PHOTOS = [
   '/images/syndicate-photo-5-web.jpg',
 ]
 
+// Jukebox banner background: this strip of photos is rendered twice back to
+// back and translated -50% on a CSS loop, so it scrolls right-to-left forever
+// with no seam. Web-optimised JPEGs (~900px) of the multi-MB PNG originals.
+const MARQUEE_PHOTOS = [
+  '/images/syndicate-photo-2-web.jpg',
+  '/images/syndicate-photo-6-web.jpg',
+  '/images/syndicate-photo-7-web.jpg',
+]
+
 const prefersReducedMotion = () =>
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-// Old-TV static into a WxH canvas: grayscale noise at ~18fps with an occasional
-// horizontal tear. Returns a cleanup fn; reduced motion paints one still frame.
-// Shared by the hero header and the jukebox strip. The hero keeps it dark
-// (default) so its `lighten` blend barely touches the photo in the letters;
-// the jukebox lifts `floor`/`range` so the snow reads over a plain black band.
-function runStatic(
-  canvas: HTMLCanvasElement | null,
-  { floor = 0, range = 80 }: { floor?: number; range?: number } = {},
-): () => void {
+// Old-TV static behind the hero stencil: dark-biased grayscale noise at ~18fps
+// with an occasional horizontal tear. Kept dark so the `lighten` blend barely
+// touches the photo in the letters. Returns a cleanup fn; reduced motion paints
+// one still frame.
+function runStatic(canvas: HTMLCanvasElement | null): () => void {
   const ctx = canvas?.getContext('2d')
   if (!ctx) return () => {}
 
   const draw = () => {
     const img = ctx.createImageData(W, H)
     const d = img.data
-    const span = range * (0.7 + Math.random() * 0.3) // flickers a little
+    const range = 80 * (0.7 + Math.random() * 0.3) // flickers a little
     for (let i = 0; i < d.length; i += 4) {
-      const v = floor + ((Math.random() * span) | 0)
+      const v = (Math.random() * range) | 0
       d[i] = d[i + 1] = d[i + 2] = v
       d[i + 3] = 255
     }
@@ -88,8 +93,6 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const aboutRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
-  const jukeboxRef = useRef<HTMLElement>(null)
-  const jukeboxCanvasRef = useRef<HTMLCanvasElement>(null)
   // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
 
@@ -470,13 +473,6 @@ export default function Home() {
   // Old-TV static behind the stencil header.
   useEffect(() => runStatic(canvasRef.current), [])
 
-  // Same static on the jukebox strip's background, lifted so it reads over
-  // the plain black band rather than sitting near-invisible.
-  useEffect(
-    () => runStatic(jukeboxCanvasRef.current, { floor: 22, range: 128 }),
-    [],
-  )
-
   // About: pin the stage and scrub as the user scrolls — the bio scrambles in
   // over photos 7 and 4, then hands off to the lineup over photo 5, with the
   // photos crossfading underneath. Whichever text block is showing gets a
@@ -622,34 +618,6 @@ export default function Home() {
     if (introDone) ScrollTrigger.refresh()
   }, [introDone])
 
-  // Ease the jukebox strip's TV-static background in as it scrolls up from the
-  // black Lineup section — the strip ground is already black, so this fades the
-  // static canvas on top of it, no abrupt cut. Reduced motion keeps the static
-  // visible from CSS.
-  useEffect(() => {
-    if (prefersReducedMotion()) return
-    const strip = jukeboxRef.current
-    const canvas = jukeboxCanvasRef.current
-    if (!strip || !canvas) return
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        canvas,
-        { autoAlpha: 0 },
-        {
-          autoAlpha: 1,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: strip,
-            start: 'top bottom',
-            end: 'top 55%',
-            scrub: true,
-          },
-        },
-      )
-    }, strip)
-    return () => ctx.revert()
-  }, [])
-
   const reduced = prefersReducedMotion()
 
   return (
@@ -756,16 +724,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Retro jukebox strip: TV-static background, band photo left,
-          Win95 media player right. */}
-      <section className="syn-jukebox" ref={jukeboxRef}>
-        <canvas
-          ref={jukeboxCanvasRef}
-          className="syn-jukebox-static"
-          width={W}
-          height={H}
-          aria-hidden="true"
-        />
+      {/* Retro jukebox strip: right-to-left photo marquee background under a
+          dark scrim, band photo left, Win95 media player right. */}
+      <section className="syn-jukebox">
+        <div className="syn-jukebox-marquee" aria-hidden="true">
+          <div className="syn-jukebox-marquee-track">
+            {[...MARQUEE_PHOTOS, ...MARQUEE_PHOTOS].map((src, i) => (
+              <img
+                key={i}
+                className="syn-jukebox-marquee-img"
+                src={src}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="syn-jukebox-scrim" aria-hidden="true" />
         <img
           className="syn-jukebox-photo"
           src="/images/syndicate-photo-8.png"

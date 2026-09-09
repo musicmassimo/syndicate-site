@@ -342,11 +342,10 @@ body {
 }
 
 /* ---- Retro jukebox strip --------------------------------------------------
-   A contained black band: TV static behind (same effect as the hero header,
-   see runStatic in Home.tsx), band photo on the left (fits the strip height,
-   not full-bleed), the Win95 media player on the right with its own chrome.
-   JS eases the static canvas in as the strip scrolls up from the black Lineup
-   section; the ground stays black so there's no colour cut. */
+   A contained black band. Background: a right-to-left photo marquee (3 photos
+   rendered twice, translated -50% on a CSS loop for a seamless endless strip)
+   under a dark scrim for contrast. Foreground: band photo on the left, Win95
+   media player on the right with its own chrome. */
 .syn-jukebox {
   position: relative;
   display: flex;
@@ -358,40 +357,69 @@ body {
   padding: clamp(28px, 6vw, 56px) 24px;
   overflow: hidden;
 }
-.syn-jukebox-static {
+.syn-jukebox-marquee {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
   z-index: 0;
-  mix-blend-mode: lighten;
+  overflow: hidden;
   pointer-events: none;
-  /* JS scrubs 0 -> 1 on scroll-in; this is the no-JS / reduced-motion value. */
-  opacity: 1;
+}
+.syn-jukebox-marquee-track {
+  display: flex;
+  height: 100%;
+  width: max-content;
+  /* Two copies back to back: -50% = exactly one copy, so the loop has no seam. */
+  animation: syn-marquee 44s linear infinite;
+}
+.syn-jukebox-marquee-img {
+  display: block;
+  flex: none;
+  height: 100%;
+  width: auto;
+  object-fit: cover;
+}
+@keyframes syn-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.syn-jukebox-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.62);
 }
 .syn-jukebox-photo {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   height: clamp(180px, 34vw, 280px);
   width: auto;
   aspect-ratio: 2000 / 1326;
   max-width: 100%;
   object-fit: contain;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  /* Dark halo so the static doesn't buzz right at the photo's edge. */
-  box-shadow: 0 0 30px 6px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 0 30px 6px rgba(0, 0, 0, 0.6);
 }
 .syn-player {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 320px;
   max-width: 100%;
-  /* Light edge ring against the static, plus a dark halo that calms the noise
-     around the window — the chrome itself is untouched. */
+  /* Light edge ring plus a dark halo so the Win95 window reads cleanly over
+     the moving photos — the chrome itself is untouched. */
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.2),
-    0 0 34px 8px rgba(0, 0, 0, 0.68),
+    0 0 40px 14px rgba(0, 0, 0, 0.72),
     0 18px 40px rgba(0, 0, 0, 0.55);
+}
+@media (prefers-reduced-motion: reduce) {
+  .syn-jukebox-marquee-track {
+    animation: none;
+  }
 }
 
 .syn-btn {
