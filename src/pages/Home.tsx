@@ -461,32 +461,97 @@ export default function Home() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  // About: pin the stage and scrub a crossfade — bio in, then each photo in
-  // turn — as the user scrolls; release once the sequence is done. Skipped
-  // for reduced motion (CSS renders a plain stacked layout instead).
+  // About: pin the stage and scrub as the user scrolls — the bio scrambles in
+  // over photos 7 and 4, then hands off to the lineup over photo 5, with the
+  // photos crossfading underneath. Whichever text block is showing gets a
+  // slow single-letter glitch. Skipped for reduced motion (CSS renders a
+  // plain stacked layout instead).
   useEffect(() => {
     const about = aboutRef.current
     const stage = stageRef.current
     if (prefersReducedMotion() || !about || !stage) return
+
+    const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/<>*+=:·'
+    const rnd = () => GLYPHS[(Math.random() * GLYPHS.length) | 0]
+    const bioText = stage.querySelector<HTMLElement>('.syn-about-text--bio')!
+    const lineupText = stage.querySelector<HTMLElement>('.syn-about-text--lineup')!
+    const leavesIn = (g: HTMLElement) => [
+      ...g.querySelectorAll<HTMLElement>('.syn-scramble'),
+    ]
+    const bioLeaves = leavesIn(bioText)
+    const lineupLeaves = leavesIn(lineupText)
+    const full = new Map<HTMLElement, string>()
+    ;[...bioLeaves, ...lineupLeaves].forEach((el) =>
+      full.set(el, el.textContent ?? ''),
+    )
+
+    // Paint one scramble frame: characters left of `p` (0..1 across the line)
+    // are settled, the rest cycle random glyphs; p >= 1 snaps to real text.
+    const paint = (leaves: HTMLElement[], p: number) => {
+      leaves.forEach((el) => {
+        const text = full.get(el)!
+        if (p >= 1) {
+          el.textContent = text
+          return
+        }
+        const settled = p * text.length * 1.12
+        let out = ''
+        for (let i = 0; i < text.length; i++) {
+          out += i <= settled || text[i] === ' ' ? text[i] : rnd()
+        }
+        el.textContent = out
+      })
+    }
+
+    // Quick real-time scramble-in for a text block. Fired by a timeline
+    // callback (not scrubbed) so a fast scroll past it can't leave the text
+    // half-resolved; a short debounce stops rapid back-and-forth re-triggers.
+    let lastReveal = 0
+    const revealText = (leaves: HTMLElement[]) => {
+      const now = performance.now()
+      if (now - lastReveal < 450) return
+      lastReveal = now
+      const proxy = { p: 0 }
+      gsap.to(proxy, {
+        p: 1,
+        duration: 0.5,
+        ease: 'power2.out',
+        onUpdate: () => paint(leaves, proxy.p),
+        onComplete: () => paint(leaves, 1),
+      })
+    }
+
+    let glitchTimer = 0
     const ctx = gsap.context(() => {
       const photos = [
         ...stage.querySelectorAll<HTMLElement>('.syn-about-photo'),
       ]
+
       const tl = gsap.timeline()
-      // Bio slides/fades in and holds readable.
-      tl.fromTo(
-        '.syn-about-bio',
-        { autoAlpha: 0, y: 60 },
-        { autoAlpha: 1, y: 0, duration: 1 },
-      ).to({}, { duration: 0.6 })
-      // Crossfade: bio -> photo 0 -> photo 1 -> photo 2, each with a dwell.
-      let prev: string | HTMLElement = '.syn-about-bio'
-      photos.forEach((photo, i) => {
-        tl.to(prev, { autoAlpha: 0, duration: 1 })
-          .fromTo(photo, { autoAlpha: 0 }, { autoAlpha: 1, duration: 1 }, '<')
-          .to({}, { duration: i === photos.length - 1 ? 1 : 0.6 })
-        prev = photo
-      })
+      // Bio: fade + scramble in, hold — stays up through photos 7 and 4.
+      tl.fromTo(bioText, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 })
+        .call(() => revealText(bioLeaves), undefined, '<')
+        .to({}, { duration: 0.6 })
+        // photo 7 rises behind the bio
+        .fromTo(photos[0], { autoAlpha: 0 }, { autoAlpha: 1, duration: 1 })
+        .to({}, { duration: 0.6 })
+        // photo 7 -> photo 4, bio stays on top
+        .to(photos[0], { autoAlpha: 0, duration: 1 })
+        .fromTo(photos[1], { autoAlpha: 0 }, { autoAlpha: 1, duration: 1 }, '<')
+        .to({}, { duration: 0.6 })
+        // photo 4 -> photo 5, and bio -> lineup
+        .to(photos[1], { autoAlpha: 0, duration: 1 })
+        .fromTo(photos[2], { autoAlpha: 0 }, { autoAlpha: 1, duration: 1 }, '<')
+        .to(bioText, { autoAlpha: 0, duration: 0.7 }, '<')
+        .fromTo(
+          lineupText,
+          { autoAlpha: 0 },
+          { autoAlpha: 1, duration: 0.5 },
+          '<+=0.3',
+        )
+        .call(() => revealText(lineupLeaves), undefined, '<')
+        .to({}, { duration: 1 })
+
       ScrollTrigger.create({
         trigger: about,
         start: 'top top',
@@ -499,8 +564,37 @@ export default function Home() {
         invalidateOnRefresh: true,
         animation: tl,
       })
+
+      // One random letter flickers on whichever block is showing, ~1/s.
+      const glitch = () => {
+        const target =
+          +gsap.getProperty(lineupText, 'opacity') > 0.6
+            ? lineupLeaves
+            : +gsap.getProperty(bioText, 'opacity') > 0.6
+              ? bioLeaves
+              : null
+        if (target) {
+          const el = target[(Math.random() * target.length) | 0]
+          const text = full.get(el)!
+          // only when the line is settled (not mid-scramble / prior glitch)
+          if (text.length && el.textContent === text) {
+            let i = (Math.random() * text.length) | 0
+            while (text[i] === ' ') i = (i + 1) % text.length
+            el.textContent = text.slice(0, i) + rnd() + text.slice(i + 1)
+            window.setTimeout(() => {
+              if (el.textContent !== text) el.textContent = text
+            }, 90)
+          }
+        }
+        glitchTimer = window.setTimeout(glitch, 850 + Math.random() * 500)
+      }
+      glitchTimer = window.setTimeout(glitch, 1200)
     }, about)
-    return () => ctx.revert()
+
+    return () => {
+      window.clearTimeout(glitchTimer)
+      ctx.revert()
+    }
   }, [])
 
   // ScrollTrigger measures the pin's start/end at mount, but layout is still
@@ -566,26 +660,6 @@ export default function Home() {
         ref={aboutRef}
       >
         <div className="syn-about-stage" ref={stageRef}>
-          <div className="syn-about-bio">
-            <p className="syn-heading">About</p>
-            <p className="syn-body">
-              SYNDICATE is a Los Angeles-based jazz quintet led by trumpeter
-              Massimo Paparello. The group performs original compositions shaped
-              collectively by its members, drawing from a wide range of
-              influences across modern jazz, bebop, and contemporary improvised
-              music. Writing is shared within the ensemble, resulting in material
-              that reflects multiple compositional voices rather than a single
-              perspective.
-            </p>
-            <p className="syn-body">
-              With instrumentation of trumpet, alto saxophone/flute, piano, bass,
-              and drums, SYNDICATE emphasizes interactive ensemble playing,
-              detailed arrangements, and open improvisation. The result is a
-              repertoire that shifts between structured writing and spontaneous
-              improvisation, highlighting the voice of each player within a
-              cohesive identity.
-            </p>
-          </div>
           {ABOUT_PHOTOS.map((src) => (
             <img
               key={src}
@@ -597,6 +671,44 @@ export default function Home() {
               decoding="async"
             />
           ))}
+          {/* Bio — layered over photos 7 and 4. */}
+          <div className="syn-about-text syn-about-text--bio">
+            <div className="syn-about-panel">
+              <p className="syn-heading syn-scramble">About</p>
+              <p className="syn-body syn-scramble">
+                SYNDICATE is a Los Angeles-based jazz quintet led by trumpeter
+                Massimo Paparello. The group performs original compositions shaped
+                collectively by its members, drawing from a wide range of
+                influences across modern jazz, bebop, and contemporary improvised
+                music. Writing is shared within the ensemble, resulting in
+                material that reflects multiple compositional voices rather than a
+                single perspective.
+              </p>
+              <p className="syn-body syn-scramble">
+                With instrumentation of trumpet, alto saxophone/flute, piano,
+                bass, and drums, SYNDICATE emphasizes interactive ensemble
+                playing, detailed arrangements, and open improvisation. The
+                result is a repertoire that shifts between structured writing and
+                spontaneous improvisation, highlighting the voice of each player
+                within a cohesive identity.
+              </p>
+            </div>
+          </div>
+          {/* Lineup — layered over the final photo (5) in place of the bio. */}
+          <div className="syn-about-text syn-about-text--lineup">
+            <div className="syn-about-panel">
+              <p className="syn-heading syn-scramble">Lineup</p>
+              <ul className="syn-lineup">
+                <li className="syn-scramble">Trumpet — Massimo Paparello</li>
+                <li className="syn-scramble">
+                  Alto Saxophone &amp; Flute — Evan O&rsquo;Brien
+                </li>
+                <li className="syn-scramble">Piano — Sam Smylie</li>
+                <li className="syn-scramble">Bass — Adam Hernandez</li>
+                <li className="syn-scramble">Drums — Dante Newcombe-Kenealy</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 
