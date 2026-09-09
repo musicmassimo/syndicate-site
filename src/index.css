@@ -56,10 +56,12 @@ body {
   position: relative;
   z-index: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: clamp(260px, 34vw, 460px);
-  padding: 56px 12px 0;
+  gap: clamp(0px, 0.4vw, 6px);
+  min-height: clamp(280px, 34vw, 460px);
+  padding: clamp(16px, 3.5vw, 32px) 12px;
   background: #17130f;
   mix-blend-mode: darken;
 }
@@ -67,7 +69,7 @@ body {
   margin: 0;
   font-family: 'Archivo Black', 'Space Grotesk', system-ui, sans-serif;
   font-weight: 400;
-  font-size: clamp(44px, 13.5vw, 200px);
+  font-size: clamp(24px, 7.5vw, 108px);
   line-height: 0.9;
   letter-spacing: -0.02em;
   text-transform: uppercase;
@@ -114,11 +116,11 @@ body {
    crop lines up with the band. */
 @media (max-width: 767px) {
   .syn-hero-plate {
-    padding-top: 0;
-    min-height: 240px;
+    padding: 20px 12px;
+    min-height: 260px;
   }
   .syn-hero-title {
-    font-size: clamp(34px, 13vw, 56px);
+    font-size: clamp(19px, 7vw, 34px);
   }
   .syn-hero-img {
     object-position: center top;

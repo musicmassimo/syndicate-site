@@ -15,78 +15,91 @@ export default function Home() {
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
 
   // Power-on intro (once, skipped for reduced motion): hold on black, lift the
-  // overlay, then a code-cracking scramble on the title — each slot flickers
-  // through random glyphs, then locks to its final letter left to right, 0.7s
-  // apart, easing into place. gsap.context().revert() plus killing the per-
-  // letter settle tweens is the whole cleanup.
+  // overlay, then a code-cracking scramble on THREE stacked "SYNDICATE" lines.
+  // Each line flickers random glyphs, then locks its letters one at a time,
+  // 0.7s apart, easing into place. The middle line locks left-to-right; the
+  // top and bottom lock in randomised order. All three run the same nine
+  // evenly-spaced locks off one clock, so they finish together.
+  // gsap.context().revert() + killing the settle tweens is the whole cleanup.
   useEffect(() => {
     if (prefersReducedMotion() || !heroRef.current) return
-    const rows = [
-      ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title'),
-    ]
     const WORD = 'SYNDICATE'
     const POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/<>*'
+    const N = WORD.length
 
-    // One persistent <span> per slot in each title copy, so a locking letter
-    // can be tweened without a per-flicker rebuild wiping it.
-    const slots = rows.map((el) => {
+    const shuffled = () => {
+      const a = [...Array(N).keys()]
+      for (let i = N; i-- > 1; ) {
+        const j = (Math.random() * (i + 1)) | 0
+        ;[a[i], a[j]] = [a[j], a[i]]
+      }
+      return a
+    }
+    // Persistent <span> per slot, so a locking letter can be tweened without a
+    // per-flicker rebuild wiping it.
+    const fill = (el: Element) => {
       el.textContent = ''
       return Array.from(WORD, () => {
         const s = document.createElement('span')
         s.className = 'syn-slot'
         return el.appendChild(s)
       })
-    })
-
-    // Advance width of each final letter, measured once the webfont is ready —
-    // a locked slot sizes to its glyph so the settled word keeps even, natural
-    // spacing (the wide scramble box is only for the still-cycling slots).
-    let widths: number[] | undefined
-    const widthOf = (i: number) => {
-      if (!widths) {
-        const cs = getComputedStyle(rows[0])
-        const c = document.createElement('canvas').getContext('2d')!
-        c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
-        widths = [...WORD].map((ch) => c.measureText(ch).width)
-      }
-      return widths[i]
     }
 
-    const p = { v: 0 }
-    let shown = 0
-    let lastFlip = 0
+    // DOM order: stencil top/middle/bottom, then the outline copies top/middle/
+    // bottom. Line i pairs stencil span-row i with outline span-row i+3.
+    const titles = [
+      ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title'),
+    ]
+    const orders = [shuffled(), [...Array(N).keys()], shuffled()]
+    const lines = [0, 1, 2].map((i) => ({
+      rows: [fill(titles[i]), fill(titles[i + 3])],
+      order: orders[i],
+      locked: new Set<number>(),
+    }))
+
     const settles: ReturnType<typeof gsap.fromTo>[] = []
-    const lock = (i: number) => {
-      slots.forEach((row) => {
-        row[i].textContent = WORD[i]
-        settles.push(
-          gsap.fromTo(
-            row[i],
-            { scale: 1.3, opacity: 0.4 },
-            {
-              scale: 1,
-              opacity: 1,
-              width: widthOf(i),
-              duration: 0.4,
-              ease: 'power2.out',
-            },
-          ),
-        )
+    const lockStep = (step: number) => {
+      lines.forEach((ln) => {
+        const idx = ln.order[step]
+        ln.locked.add(idx)
+        ln.rows.forEach((row) => {
+          row[idx].textContent = WORD[idx]
+          settles.push(
+            gsap.fromTo(
+              row[idx],
+              { scale: 1.3, opacity: 0.4 },
+              { scale: 1, opacity: 1, duration: 0.4, ease: 'power2.out' },
+            ),
+          )
+        })
       })
     }
+
+    const p = { step: 0 }
+    let done = 0
+    let lastFlip = 0
     const tick = () => {
-      while (shown < Math.round(p.v)) lock(shown++)
+      while (done < Math.round(p.step)) lockStep(done++)
       const now = performance.now()
       if (now - lastFlip < 80) return // ~12 glyph changes/sec, not per-frame
       lastFlip = now
-      for (let i = shown; i < WORD.length; i++) {
-        const ch = POOL[(Math.random() * POOL.length) | 0]
-        slots.forEach((row) => (row[i].textContent = ch))
-      }
+      lines.forEach((ln) =>
+        ln.rows.forEach((row) => {
+          for (let k = 0; k < N; k++)
+            if (!ln.locked.has(k))
+              row[k].textContent = POOL[(Math.random() * POOL.length) | 0]
+        }),
+      )
     }
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ onComplete: () => setIntroDone(true) })
+      const tl = gsap.timeline({
+        onComplete: () => {
+          titles.forEach((el) => (el.textContent = WORD))
+          setIntroDone(true)
+        },
+      })
       tl.set('.syn-hero-intro', { autoAlpha: 1 })
         .to('.syn-hero-intro', {
           autoAlpha: 0,
@@ -96,14 +109,10 @@ export default function Home() {
         })
         .to(
           p,
-          {
-            v: WORD.length,
-            duration: WORD.length * 0.7,
-            ease: `steps(${WORD.length})`,
-            onUpdate: tick,
-          },
+          { step: N, duration: N * 0.7, ease: `steps(${N})`, onUpdate: tick },
           0.6,
         )
+        .to({}, { duration: 0.4 }) // let the last letter's settle finish
     }, heroRef)
     return () => {
       ctx.revert()
@@ -181,7 +190,13 @@ export default function Home() {
           decoding="async"
         />
         <div className="syn-hero-plate">
+          <span className="syn-hero-title" aria-hidden="true">
+            Syndicate
+          </span>
           <h1 className="syn-hero-title">Syndicate</h1>
+          <span className="syn-hero-title" aria-hidden="true">
+            Syndicate
+          </span>
         </div>
         <canvas
           ref={canvasRef}
@@ -191,10 +206,13 @@ export default function Home() {
           aria-hidden="true"
         />
         <div className="syn-hero-scanlines" aria-hidden="true" />
-        {/* Definition-only copy: crisp light outline, no fill, no glow — sits
-            above the static so the letterforms stay legible over dark photo. */}
+        {/* Definition-only copies: crisp light outline, no fill, no glow — sit
+            above the static so the letterforms stay legible over dark photo.
+            One per stacked line, positioned to match the stencil copies. */}
         <div className="syn-hero-plate syn-hero-plate--edge" aria-hidden="true">
-          <h1 className="syn-hero-title">Syndicate</h1>
+          <span className="syn-hero-title">Syndicate</span>
+          <span className="syn-hero-title">Syndicate</span>
+          <span className="syn-hero-title">Syndicate</span>
         </div>
         {!introDone && <div className="syn-hero-intro" aria-hidden="true" />}
       </section>
