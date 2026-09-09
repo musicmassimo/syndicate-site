@@ -248,6 +248,64 @@ body {
   opacity: 0.5;
 }
 
+/* ---- About: pinned scroll-reveal (bio -> three full-bleed photos) -------
+   ScrollTrigger (see Home.tsx) pins .syn-about-stage and scrubs a crossfade
+   timeline as the user scrolls. .syn-about--static is the reduced-motion /
+   no-JS fallback: a plain stacked layout, everything visible. */
+.syn-about {
+  position: relative;
+  background: #000;
+}
+.syn-about-stage {
+  position: relative;
+  height: 100svh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.syn-about-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+.syn-about-bio {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 6vw, 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  will-change: transform, opacity;
+}
+.syn-about-bio .syn-body {
+  font-size: clamp(13px, 1.6vw, 16px);
+}
+
+.syn-about--static .syn-about-stage {
+  height: auto;
+  display: block;
+  padding: clamp(48px, 10vw, 96px) 0;
+}
+.syn-about--static .syn-about-bio {
+  opacity: 1;
+  margin-bottom: 40px;
+}
+.syn-about--static .syn-about-photo {
+  position: static;
+  opacity: 1;
+  display: block;
+  width: min(100%, 1100px);
+  height: auto;
+  aspect-ratio: 3 / 2;
+  margin: 16px auto 0;
+}
+
 .syn-btn {
   display: inline-block;
   padding: 14px 28px;

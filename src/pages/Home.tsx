@@ -1,9 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+ScrollTrigger.config({ ignoreMobileResize: true })
 
 // Small backing store, stretched to fill by CSS — cheap noise, fuzzy analog look.
 const W = 320
 const H = 180
+
+// About reveal: full-bleed photos crossfaded after the bio, in this order.
+// Web-optimised JPEGs (~1400px) of the multi-MB PNG originals so the scrubbed
+// reveal stays smooth; the *.png originals stay in /public/images.
+const ABOUT_PHOTOS = [
+  '/images/syndicate-photo-7-web.jpg',
+  '/images/syndicate-photo-4-web.jpg',
+  '/images/syndicate-photo-5-web.jpg',
+]
 
 const prefersReducedMotion = () =>
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -11,8 +24,18 @@ const prefersReducedMotion = () =>
 export default function Home() {
   const heroRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const aboutRef = useRef<HTMLElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
   // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
+
+  // Mount at the top so the hero intro plays from a clean slate and the About
+  // ScrollTrigger measures its pin against an unscrolled layout. Reload
+  // restoration is already suppressed in main.tsx; this also covers arriving
+  // here by client-side navigation.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
 
   // Power-on intro (once, skipped for reduced motion): hold on black, lift the
   // overlay, then a code-cracking scramble on THREE stacked "SYNDICATE" lines.
@@ -437,6 +460,59 @@ export default function Home() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
+  // About: pin the stage and scrub a crossfade — bio in, then each photo in
+  // turn — as the user scrolls; release once the sequence is done. Skipped
+  // for reduced motion (CSS renders a plain stacked layout instead).
+  useEffect(() => {
+    const about = aboutRef.current
+    const stage = stageRef.current
+    if (prefersReducedMotion() || !about || !stage) return
+    const ctx = gsap.context(() => {
+      const photos = [
+        ...stage.querySelectorAll<HTMLElement>('.syn-about-photo'),
+      ]
+      const tl = gsap.timeline()
+      // Bio slides/fades in and holds readable.
+      tl.fromTo(
+        '.syn-about-bio',
+        { autoAlpha: 0, y: 60 },
+        { autoAlpha: 1, y: 0, duration: 1 },
+      ).to({}, { duration: 0.6 })
+      // Crossfade: bio -> photo 0 -> photo 1 -> photo 2, each with a dwell.
+      let prev: string | HTMLElement = '.syn-about-bio'
+      photos.forEach((photo, i) => {
+        tl.to(prev, { autoAlpha: 0, duration: 1 })
+          .fromTo(photo, { autoAlpha: 0 }, { autoAlpha: 1, duration: 1 }, '<')
+          .to({}, { duration: i === photos.length - 1 ? 1 : 0.6 })
+        prev = photo
+      })
+      ScrollTrigger.create({
+        trigger: about,
+        start: 'top top',
+        end: () => '+=' + Math.round(window.innerHeight * 4),
+        pin: stage,
+        // Tie the reveal exactly to scroll position — no catch-up lag, so
+        // fast scrolling can't outrun the crossfade and unpin early.
+        scrub: true,
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+        animation: tl,
+      })
+    }, about)
+    return () => ctx.revert()
+  }, [])
+
+  // ScrollTrigger measures the pin's start/end at mount, but layout is still
+  // moving then — the web font swaps in and the hero intro briefly spreads its
+  // rows, both shifting this section down. Re-measure against the settled
+  // layout once the intro finishes (this fires on mount for reduced motion,
+  // where there's no ScrollTrigger to refresh — harmless).
+  useEffect(() => {
+    if (introDone) ScrollTrigger.refresh()
+  }, [introDone])
+
+  const reduced = prefersReducedMotion()
+
   return (
     <>
       {/* Stencil header — the photo blends through the letterforms. */}
@@ -481,6 +557,46 @@ export default function Home() {
           ))}
         </div>
         {!introDone && <div className="syn-hero-intro" aria-hidden="true" />}
+      </section>
+
+      {/* Pinned scroll-reveal: bio, then three full-bleed photos. */}
+      <section
+        className={`syn-about${reduced ? ' syn-about--static' : ''}`}
+        ref={aboutRef}
+      >
+        <div className="syn-about-stage" ref={stageRef}>
+          <div className="syn-about-bio">
+            <p className="syn-heading">About</p>
+            <p className="syn-body">
+              SYNDICATE is a Los Angeles-based jazz quintet led by trumpeter
+              Massimo Paparello. The group performs original compositions shaped
+              collectively by its members, drawing from a wide range of
+              influences across modern jazz, bebop, and contemporary improvised
+              music. Writing is shared within the ensemble, resulting in material
+              that reflects multiple compositional voices rather than a single
+              perspective.
+            </p>
+            <p className="syn-body">
+              With instrumentation of trumpet, alto saxophone/flute, piano, bass,
+              and drums, SYNDICATE emphasizes interactive ensemble playing,
+              detailed arrangements, and open improvisation. The result is a
+              repertoire that shifts between structured writing and spontaneous
+              improvisation, highlighting the voice of each player within a
+              cohesive identity.
+            </p>
+          </div>
+          {ABOUT_PHOTOS.map((src) => (
+            <img
+              key={src}
+              className="syn-about-photo"
+              src={src}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              decoding="async"
+            />
+          ))}
+        </div>
       </section>
 
       <hr className="syn-rule" />

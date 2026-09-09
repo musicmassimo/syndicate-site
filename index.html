@@ -11,6 +11,13 @@
       rel="stylesheet"
     />
     <title>SYNDICATE</title>
+    <script>
+      // Run before first paint/load so the browser never restores a mid-page
+      // scroll on reload: the Home hero intro expects a clean top and the
+      // About ScrollTrigger measures its pin at mount, staying inert if the
+      // page comes up half-scrolled. (A module script can race the restore.)
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+    </script>
   </head>
   <body>
     <div id="root"></div>
