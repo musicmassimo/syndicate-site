@@ -22,12 +22,74 @@ const ABOUT_PHOTOS = [
 const prefersReducedMotion = () =>
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
+// Old-TV static into a WxH canvas: grayscale noise at ~18fps with an occasional
+// horizontal tear. Returns a cleanup fn; reduced motion paints one still frame.
+// Shared by the hero header and the jukebox strip. The hero keeps it dark
+// (default) so its `lighten` blend barely touches the photo in the letters;
+// the jukebox lifts `floor`/`range` so the snow reads over a plain black band.
+function runStatic(
+  canvas: HTMLCanvasElement | null,
+  { floor = 0, range = 80 }: { floor?: number; range?: number } = {},
+): () => void {
+  const ctx = canvas?.getContext('2d')
+  if (!ctx) return () => {}
+
+  const draw = () => {
+    const img = ctx.createImageData(W, H)
+    const d = img.data
+    const span = range * (0.7 + Math.random() * 0.3) // flickers a little
+    for (let i = 0; i < d.length; i += 4) {
+      const v = floor + ((Math.random() * span) | 0)
+      d[i] = d[i + 1] = d[i + 2] = v
+      d[i + 3] = 255
+    }
+    ctx.putImageData(img, 0, 0)
+  }
+
+  if (prefersReducedMotion()) {
+    draw()
+    return () => {}
+  }
+
+  const FRAME = 1000 / 18 // ~18fps is plenty for convincing static
+  let raf = 0
+  let last = 0
+  let glitchUntil = 0
+  let nextGlitch = performance.now() + 2000 + Math.random() * 4000
+
+  const loop = (now: number) => {
+    raf = requestAnimationFrame(loop)
+    if (now - last < FRAME) return
+    last = now
+
+    draw()
+
+    if (now > nextGlitch) {
+      glitchUntil = now + 60 + Math.random() * 120 // < 200ms
+      nextGlitch = now + 2500 + Math.random() * 5000
+    }
+    if (now < glitchUntil) {
+      // Horizontal tear: grab a band, shove it sideways, add a bright jump line.
+      const y = (Math.random() * H) | 0
+      const h = Math.min(4 + ((Math.random() * 20) | 0), H - y)
+      const dx = ((Math.random() - 0.5) * 60) | 0
+      ctx.putImageData(ctx.getImageData(0, y, W, h), dx, y)
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'
+      ctx.fillRect(0, y, W, 2)
+    }
+  }
+
+  raf = requestAnimationFrame(loop)
+  return () => cancelAnimationFrame(raf)
+}
+
 export default function Home() {
   const heroRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const aboutRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const jukeboxRef = useRef<HTMLElement>(null)
+  const jukeboxCanvasRef = useRef<HTMLCanvasElement>(null)
   // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
 
@@ -405,62 +467,15 @@ export default function Home() {
     }
   }, [])
 
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d')
-    if (!ctx) return
+  // Old-TV static behind the stencil header.
+  useEffect(() => runStatic(canvasRef.current), [])
 
-    // Dark-biased grayscale noise. `range` flickers a little each frame.
-    const drawNoise = () => {
-      const img = ctx.createImageData(W, H)
-      const d = img.data
-      // Kept dark so the `lighten` blend barely touches the photo in the
-      // letters; against the near-black surround it still reads as static.
-      const range = 80 * (0.7 + Math.random() * 0.3)
-      for (let i = 0; i < d.length; i += 4) {
-        const v = (Math.random() * range) | 0
-        d[i] = d[i + 1] = d[i + 2] = v
-        d[i + 3] = 255
-      }
-      ctx.putImageData(img, 0, 0)
-    }
-
-    // Reduced motion: one still frame of noise, no loop.
-    if (prefersReducedMotion()) {
-      drawNoise()
-      return
-    }
-
-    const FRAME = 1000 / 18 // ~18fps is plenty for convincing static
-    let raf = 0
-    let last = 0
-    let glitchUntil = 0
-    let nextGlitch = performance.now() + 2000 + Math.random() * 4000
-
-    const loop = (now: number) => {
-      raf = requestAnimationFrame(loop)
-      if (now - last < FRAME) return
-      last = now
-
-      drawNoise()
-
-      if (now > nextGlitch) {
-        glitchUntil = now + 60 + Math.random() * 120 // < 200ms
-        nextGlitch = now + 2500 + Math.random() * 5000
-      }
-      if (now < glitchUntil) {
-        // Horizontal tear: grab a band and shove it sideways, plus a bright jump line.
-        const y = (Math.random() * H) | 0
-        const h = Math.min(4 + ((Math.random() * 20) | 0), H - y)
-        const dx = ((Math.random() - 0.5) * 60) | 0
-        ctx.putImageData(ctx.getImageData(0, y, W, h), dx, y)
-        ctx.fillStyle = 'rgba(255,255,255,0.15)'
-        ctx.fillRect(0, y, W, 2)
-      }
-    }
-
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+  // Same static on the jukebox strip's background, lifted so it reads over
+  // the plain black band rather than sitting near-invisible.
+  useEffect(
+    () => runStatic(jukeboxCanvasRef.current, { floor: 22, range: 128 }),
+    [],
+  )
 
   // About: pin the stage and scrub as the user scrolls — the bio scrambles in
   // over photos 7 and 4, then hands off to the lineup over photo 5, with the
@@ -607,19 +622,21 @@ export default function Home() {
     if (introDone) ScrollTrigger.refresh()
   }, [introDone])
 
-  // Ease the jukebox strip's ground from the black of the Lineup section up to
-  // its sage green as it scrolls in — no abrupt colour cut. Reduced motion
-  // keeps the static sage from CSS.
+  // Ease the jukebox strip's TV-static background in as it scrolls up from the
+  // black Lineup section — the strip ground is already black, so this fades the
+  // static canvas on top of it, no abrupt cut. Reduced motion keeps the static
+  // visible from CSS.
   useEffect(() => {
     if (prefersReducedMotion()) return
     const strip = jukeboxRef.current
-    if (!strip) return
+    const canvas = jukeboxCanvasRef.current
+    if (!strip || !canvas) return
     const ctx = gsap.context(() => {
       gsap.fromTo(
-        strip,
-        { backgroundColor: '#000000' },
+        canvas,
+        { autoAlpha: 0 },
         {
-          backgroundColor: '#bccfa4',
+          autoAlpha: 1,
           ease: 'none',
           scrollTrigger: {
             trigger: strip,
@@ -739,8 +756,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Retro jukebox strip: band photo left, Win95 media player right. */}
+      {/* Retro jukebox strip: TV-static background, band photo left,
+          Win95 media player right. */}
       <section className="syn-jukebox" ref={jukeboxRef}>
+        <canvas
+          ref={jukeboxCanvasRef}
+          className="syn-jukebox-static"
+          width={W}
+          height={H}
+          aria-hidden="true"
+        />
         <img
           className="syn-jukebox-photo"
           src="/images/syndicate-photo-8.png"
