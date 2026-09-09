@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import RetroPlayer from '../components/RetroPlayer'
 
 gsap.registerPlugin(ScrollTrigger)
 ScrollTrigger.config({ ignoreMobileResize: true })
@@ -597,6 +598,20 @@ export default function Home() {
             />
           ))}
         </div>
+      </section>
+
+      {/* Retro jukebox strip: band photo left, Win95 media player right. */}
+      <section className="syn-jukebox">
+        <img
+          className="syn-jukebox-photo"
+          src="/images/syndicate-photo-8.png"
+          alt=""
+          aria-hidden="true"
+          width={2000}
+          height={1326}
+          decoding="async"
+        />
+        <RetroPlayer />
       </section>
 
       <hr className="syn-rule" />
