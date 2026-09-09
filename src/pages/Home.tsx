@@ -30,10 +30,11 @@ export default function Home() {
     const NARROW = 'I1!|/\\:;'
     const N = WORD.length
     const poolAt = [...WORD].map((ch) => (ch === 'I' ? NARROW : POOL))
-    // Post-intro loop: convert the five rows to these names one row at a time
-    // (random row order), hold, then scramble every row back to SYNDICATE.
+    // Post-intro loop: convert the five rows top-to-bottom to these fixed names
+    // (row i -> NAMES[i]), hold, then scramble every row back to SYNDICATE.
     // Each name is centred in the nine slots; unused slots collapse.
     const NAMES = ['MASSIMO', 'EVAN', 'ADAM', 'SAM', 'DANTE']
+    const STEADY_SECONDS = 24 // dwell on SYNDICATE (with glitching) before looping
     const startFor = (word: string) => (N - word.length) >> 1
 
     // Persistent <span> per slot, so a locking letter can be tweened without a
@@ -245,13 +246,15 @@ export default function Home() {
     const applyGap = () => plates.forEach((el) => (el.style.rowGap = `${gp.v}px`))
     applyGap()
 
-    // Glitch: every 2.2-2.4s while `glitchOn`, re-scramble one random letter of
-    // the currently-shown word in one random row for <300ms, then restore it.
-    // One pending timeout at a time (`timer`), cleared on unmount.
+    // Glitch: while `glitchOn`, re-scramble one random letter of the word a
+    // random row currently shows for <300ms, then restore it. `glitchNext`
+    // gives the delay to the next one (slow steady state vs. the fast burst
+    // during the names hold). One pending timeout at a time (`timer`).
     let timer = 0
     let glitchOn = false
+    let glitchNext = () => 2200 + Math.random() * 200
     const scheduleGlitch = () => {
-      timer = window.setTimeout(runGlitch, 2200 + Math.random() * 200)
+      timer = window.setTimeout(runGlitch, glitchNext())
     }
     const runGlitch = () => {
       const li = (Math.random() * LINES) | 0
@@ -277,42 +280,33 @@ export default function Home() {
     }
 
     const ctx = gsap.context(() => {
-      // Looping post-intro sequence: convert rows to names one at a time in a
-      // fresh random order, hold (with glitches), scramble every row back to
-      // SYNDICATE, repeat.
+      // Looping post-intro sequence: convert row i -> NAMES[i] one at a time,
+      // hold with a fast glitch burst, scramble every row back to SYNDICATE,
+      // dwell there with slow glitching, then repeat.
       const cycleTl = gsap.timeline({ repeat: -1, paused: true })
-      // Random row order, re-shuffled at the top of every loop. The name steps
-      // read rowOrder[i] at run time, so they follow the current shuffle.
-      let rowOrder: number[] = []
       const nameRowStep = (word: string, i: number) => {
         cycleTl
           .call(() => {
-            const ln = lines[rowOrder[i]]
-            neutralizeRow(ln)
-            morphRow(ln, word)
+            neutralizeRow(lines[i])
+            morphRow(lines[i], word)
           })
-          .to(
-            {},
-            {
-              duration: 2,
-              onUpdate: () => tickRow(lines[rowOrder[i]], word),
-            },
-          )
-          .call(() => landRow(lines[rowOrder[i]], rowOrder[i], word))
+          .to({}, { duration: 2, onUpdate: () => tickRow(lines[i], word) })
+          .call(() => landRow(lines[i], i, word))
       }
       cycleTl
-        .to({}, { duration: 1 }) // hold the settled SYNDICATE
         .call(() => {
           glitchOn = false
-          rowOrder = shuffle([...Array(LINES).keys()])
+          clearTimeout(timer)
         })
+        .to({}, { duration: 1 }) // hold the settled SYNDICATE, no glitch
       NAMES.forEach((name, i) => nameRowStep(name, i))
       cycleTl
         .call(() => {
           glitchOn = true
+          glitchNext = () => 800 // fast burst
           scheduleGlitch()
         })
-        .to({}, { duration: 5 }) // hold the five names, glitches fire here
+        .to({}, { duration: 4 }) // hold the five names
         .call(() => {
           glitchOn = false
           clearTimeout(timer)
@@ -320,8 +314,14 @@ export default function Home() {
         })
         // Scramble every row back to SYNDICATE together.
         .call(() => void morphSlots(WORD))
-        .to({}, { duration: 3, onUpdate: () => flickWord(WORD) })
-        .call(() => landWord(WORD))
+        .to({}, { duration: 2.2, onUpdate: () => flickWord(WORD) })
+        .call(() => {
+          landWord(WORD)
+          glitchOn = true
+          glitchNext = () => 2200 + Math.random() * 200 // back to sporadic
+          scheduleGlitch()
+        })
+        .to({}, { duration: STEADY_SECONDS }) // dwell, sporadic glitching
 
       const tl = gsap.timeline({
         onComplete: () => {
