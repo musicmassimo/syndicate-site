@@ -528,3 +528,60 @@ body {
   width: 100%;
   margin-top: 10px;
 }
+
+/* ---- Booking form (Contact page) ---------------------------------------- */
+.syn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.syn-field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.syn-field-row {
+  display: flex;
+  gap: 20px;
+}
+@media (max-width: 600px) {
+  .syn-field-row {
+    flex-direction: column;
+  }
+}
+
+.syn-label {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.syn-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+.syn-input:focus {
+  border-color: #ff9d4d;
+}
+
+.syn-textarea {
+  resize: vertical;
+}
+
+.syn-btn {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  align-self: flex-start;
+}

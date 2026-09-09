@@ -95,6 +95,15 @@ function runStatic(canvas: HTMLCanvasElement | null): () => void {
   return () => cancelAnimationFrame(raf)
 }
 
+const EVENT_TYPES = [
+  'Private event',
+  'Wedding',
+  'Festival',
+  'Corporate',
+  'Venue / club',
+  'Other',
+]
+
 export default function Home() {
   const heroRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -105,6 +114,43 @@ export default function Home() {
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
   // The banner video loads (and autoplays) only once the strip scrolls in.
   const [videoLive, setVideoLive] = useState(false)
+
+  // Booking inquiry form, rendered below the jukebox/audio player banner.
+  const [bookingForm, setBookingForm] = useState({
+    name: '',
+    email: '',
+    eventType: EVENT_TYPES[0],
+    eventDate: '',
+    location: '',
+    budget: '',
+    details: '',
+  })
+
+  function updateBooking<K extends keyof typeof bookingForm>(
+    key: K,
+    value: string
+  ) {
+    setBookingForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function handleBookingSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const subject = `Booking inquiry — ${bookingForm.eventType}`
+    const bodyLines = [
+      `Name: ${bookingForm.name}`,
+      `Email: ${bookingForm.email}`,
+      `Event type: ${bookingForm.eventType}`,
+      `Date: ${bookingForm.eventDate || 'TBD'}`,
+      `Location / venue: ${bookingForm.location || 'TBD'}`,
+      `Budget: ${bookingForm.budget || 'Not specified'}`,
+      '',
+      bookingForm.details,
+    ]
+    const mailto = `mailto:syndicatebookings@massimopaparello.com?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(bodyLines.join('\n'))}`
+    window.location.href = mailto
+  }
 
   // Mount at the top so the hero intro plays from a clean slate and the About
   // ScrollTrigger measures its pin against an unscrolled layout. Reload
@@ -783,6 +829,95 @@ export default function Home() {
         <div className="syn-jukebox-player">
           <RetroPlayer />
         </div>
+      </section>
+
+      <hr className="syn-rule" />
+
+      <section className="syn-section" id="book">
+        <p className="syn-heading">Book Syndicate</p>
+        <form className="syn-form" onSubmit={handleBookingSubmit}>
+          <div className="syn-field">
+            <label className="syn-label" htmlFor="book-name">Name</label>
+            <input
+              id="book-name"
+              className="syn-input"
+              required
+              value={bookingForm.name}
+              onChange={(e) => updateBooking('name', e.target.value)}
+            />
+          </div>
+          <div className="syn-field">
+            <label className="syn-label" htmlFor="book-email">Email</label>
+            <input
+              id="book-email"
+              type="email"
+              className="syn-input"
+              required
+              value={bookingForm.email}
+              onChange={(e) => updateBooking('email', e.target.value)}
+            />
+          </div>
+          <div className="syn-field-row">
+            <div className="syn-field">
+              <label className="syn-label" htmlFor="book-type">Event type</label>
+              <select
+                id="book-type"
+                className="syn-input"
+                value={bookingForm.eventType}
+                onChange={(e) => updateBooking('eventType', e.target.value)}
+              >
+                {EVENT_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div className="syn-field">
+              <label className="syn-label" htmlFor="book-date">Date</label>
+              <input
+                id="book-date"
+                type="date"
+                className="syn-input"
+                value={bookingForm.eventDate}
+                onChange={(e) => updateBooking('eventDate', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="syn-field-row">
+            <div className="syn-field">
+              <label className="syn-label" htmlFor="book-location">Venue / location</label>
+              <input
+                id="book-location"
+                className="syn-input"
+                value={bookingForm.location}
+                onChange={(e) => updateBooking('location', e.target.value)}
+              />
+            </div>
+            <div className="syn-field">
+              <label className="syn-label" htmlFor="book-budget">Budget</label>
+              <input
+                id="book-budget"
+                className="syn-input"
+                placeholder="Optional"
+                value={bookingForm.budget}
+                onChange={(e) => updateBooking('budget', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="syn-field">
+            <label className="syn-label" htmlFor="book-details">Details</label>
+            <textarea
+              id="book-details"
+              className="syn-input syn-textarea"
+              rows={4}
+              placeholder="Set length, timing, anything else we should know"
+              value={bookingForm.details}
+              onChange={(e) => updateBooking('details', e.target.value)}
+            />
+          </div>
+          <button type="submit" className="syn-btn">
+            Send inquiry
+          </button>
+        </form>
       </section>
 
       <hr className="syn-rule" />
