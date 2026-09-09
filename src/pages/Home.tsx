@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
 
 // Small backing store, stretched to fill by CSS — cheap noise, fuzzy analog look.
 const W = 320
@@ -8,10 +9,33 @@ const prefersReducedMotion = () =>
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 export default function Home() {
+  const heroRef = useRef<HTMLElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  // CRT power-on intro plays once; skipped outright for reduced motion. The
-  // overlay unmounts itself on animationend — that's the whole cleanup.
+  // Power-on intro plays once; skipped outright for reduced motion.
   const [introDone, setIntroDone] = useState(prefersReducedMotion)
+
+  // Power-on intro: hold on black, then lift the black overlay while the
+  // stencil settles from a slight scale. gsap.context() scopes selectors to
+  // the hero and its revert() kills the timeline + clears inline styles.
+  useEffect(() => {
+    if (prefersReducedMotion()) return
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ onComplete: () => setIntroDone(true) })
+      tl.set('.syn-hero-intro', { autoAlpha: 1 })
+        .to('.syn-hero-intro', {
+          autoAlpha: 0,
+          duration: 1.3,
+          ease: 'power2.inOut',
+          delay: 0.45,
+        })
+        .from(
+          '.syn-hero-title',
+          { scale: 1.05, duration: 1.6, ease: 'power3.out' },
+          0.45,
+        )
+    }, heroRef)
+    return () => ctx.revert()
+  }, [])
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d')
@@ -73,7 +97,7 @@ export default function Home() {
   return (
     <>
       {/* Stencil header — the photo blends through the letterforms. */}
-      <section className="syn-hero">
+      <section className="syn-hero" ref={heroRef}>
         <img
           className="syn-hero-img"
           src="/images/syndicate-header.jpg"
@@ -93,13 +117,12 @@ export default function Home() {
           aria-hidden="true"
         />
         <div className="syn-hero-scanlines" aria-hidden="true" />
-        {!introDone && (
-          <div
-            className="syn-hero-intro"
-            aria-hidden="true"
-            onAnimationEnd={() => setIntroDone(true)}
-          />
-        )}
+        {/* Definition-only copy: crisp light outline, no fill, no glow — sits
+            above the static so the letterforms stay legible over dark photo. */}
+        <div className="syn-hero-plate syn-hero-plate--edge" aria-hidden="true">
+          <h1 className="syn-hero-title">Syndicate</h1>
+        </div>
+        {!introDone && <div className="syn-hero-intro" aria-hidden="true" />}
       </section>
 
       <hr className="syn-rule" />

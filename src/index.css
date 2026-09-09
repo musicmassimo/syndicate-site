@@ -82,6 +82,24 @@ body {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
+/* Definition pass: a second copy of the title above the static, contributing
+   ONLY a thin light outline (no fill, no glow) so the letterforms stay
+   separated from the dark photo/static behind them. Reuses the plate's
+   flex+padding layout so it lines up exactly with the stencil copy. */
+.syn-hero-plate--edge {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: transparent;
+  mix-blend-mode: normal;
+  pointer-events: none;
+}
+.syn-hero-plate--edge .syn-hero-title {
+  color: transparent;
+  text-shadow: none;
+  -webkit-text-stroke: 1.5px rgba(224, 224, 224, 0.6);
+}
+
 /* Mobile: the smaller cap stops the nowrap word overflowing a 375px
    viewport, and zeroing the top padding re-centres the letterforms so the
    crop lines up with the band. */
@@ -95,27 +113,6 @@ body {
   }
   .syn-hero-img {
     object-position: center top;
-  }
-}
-
-/* Fade/scale the header in on load. Replaces the original's GSAP reveal —
-   same effect, no dependency. */
-@keyframes syn-hero-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-.syn-hero {
-  animation: syn-hero-in 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .syn-hero {
-    animation: none;
   }
 }
 
@@ -147,53 +144,15 @@ body {
   );
 }
 
-/* CRT power-on: a centre line snaps in, expands to full height with a bright
-   overshoot flash, jumps sideways once (the tear), then fades to reveal the
-   settled header. ~3s, plays once — the element is unmounted on animationend
-   (see Home.tsx), and never rendered at all under prefers-reduced-motion. */
+/* Power-on intro overlay: a plain black cover over the header. GSAP holds it
+   opaque, then fades it out to reveal the settled static + stencil (see
+   Home.tsx). No CSS animation — starts black on mount so there's no flash. */
 .syn-hero-intro {
   position: absolute;
   inset: 0;
   z-index: 5;
   pointer-events: none;
-  background: #fff;
-  transform-origin: center center;
-  box-shadow: 0 0 16px 5px rgba(255, 255, 255, 0.9);
-  animation: syn-crt-on 3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-@keyframes syn-crt-on {
-  0% {
-    transform: scaleY(0.003);
-    opacity: 1;
-  }
-  12% {
-    transform: scaleY(0.003);
-    opacity: 1;
-  }
-  40% {
-    transform: scaleY(1.06);
-    opacity: 1;
-  }
-  48% {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-  62% {
-    transform: scaleY(1) translateX(0);
-    opacity: 0.5;
-  }
-  66% {
-    transform: scaleY(1) translateX(-18px);
-    opacity: 0.62;
-  }
-  70% {
-    transform: scaleY(1) translateX(11px);
-    opacity: 0.4;
-  }
-  100% {
-    transform: scaleY(1) translateX(0);
-    opacity: 0;
-  }
+  background: #000;
 }
 
 /* ---- Section primitives ------------------------------------------------- */
