@@ -28,9 +28,10 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          # Hostinger's web root. Drop to ./ if this FTP account is already
-          # scoped to public_html.
-          server-dir: public_html/
+          # This FTP account is already scoped to the web root, so uploads go
+          # straight to ./ — setting public_html/ nested the whole build one
+          # level too deep.
+          server-dir: ./
           exclude: |
             **/.git*
             **/.git*/**
