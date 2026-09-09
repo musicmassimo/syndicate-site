@@ -37,14 +37,18 @@ export default function Home() {
       el.textContent = ''
       return Array.from(WORD, (ch, i) => {
         const s = document.createElement('span')
-        // The "I" slot is narrower (thin bar); the "D" after an "N" is nudged
-        // left so the two verticals merge instead of leaving a seam.
+        // The "I" slot is narrower (thin bar). The touching N/D pair is nudged
+        // together (--nd on the D) and, in the outline layer only, their
+        // adjoining edges are clipped (--nd-n on the N, --nd on the D) so the
+        // two verticals read as one with no dividing stroke.
         s.className =
           ch === 'I'
             ? 'syn-slot syn-slot--i'
             : ch === 'D' && WORD[i - 1] === 'N'
               ? 'syn-slot syn-slot--nd'
-              : 'syn-slot'
+              : ch === 'N' && WORD[i + 1] === 'D'
+                ? 'syn-slot syn-slot--nd-n'
+                : 'syn-slot'
         return el.appendChild(s)
       })
     }
@@ -169,12 +173,12 @@ export default function Home() {
     const applyGap = () => plates.forEach((el) => (el.style.rowGap = `${gp.v}px`))
     applyGap()
 
-    // Occasional post-settle glitch: every 4-10s, re-scramble one random letter
-    // in one random row for <300ms, then set it back. One pending timeout at a
-    // time (`timer`), cleared on unmount.
+    // Occasional post-settle glitch: every 2.2-2.4s, re-scramble one random
+    // letter in one random row for <300ms, then set it back. One pending
+    // timeout at a time (`timer`), cleared on unmount.
     let timer = 0
     const scheduleGlitch = () => {
-      timer = window.setTimeout(runGlitch, 4000 + Math.random() * 6000)
+      timer = window.setTimeout(runGlitch, 2200 + Math.random() * 200)
     }
     const runGlitch = () => {
       const ln = lines[(Math.random() * LINES) | 0]
