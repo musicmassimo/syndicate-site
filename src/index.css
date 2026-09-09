@@ -59,9 +59,11 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(0px, 0.4vw, 6px);
-  min-height: clamp(280px, 34vw, 460px);
-  padding: clamp(16px, 3.5vw, 32px) 12px;
+  gap: 0; /* the five stacked lines sit flush, no gaps */
+  /* Sized to hold five full-size title lines: ~5 x 0.8 line-height x the
+     font clamp (~54vw), plus padding. */
+  min-height: clamp(240px, 64vw, 940px);
+  padding: clamp(18px, 2.5vw, 36px) 12px;
   background: #17130f;
   mix-blend-mode: darken;
 }
@@ -69,8 +71,9 @@ body {
   margin: 0;
   font-family: 'Archivo Black', 'Space Grotesk', system-ui, sans-serif;
   font-weight: 400;
-  font-size: clamp(24px, 7.5vw, 108px);
-  line-height: 0.9;
+  font-size: clamp(44px, 13.5vw, 200px);
+  /* Tight enough that the stacked caps sit adjacent with no visible gap. */
+  line-height: 0.8;
   letter-spacing: -0.02em;
   text-transform: uppercase;
   text-align: center;
@@ -116,11 +119,11 @@ body {
    crop lines up with the band. */
 @media (max-width: 767px) {
   .syn-hero-plate {
-    padding: 20px 12px;
-    min-height: 260px;
+    padding: 12px;
+    min-height: clamp(200px, 64vw, 340px);
   }
   .syn-hero-title {
-    font-size: clamp(19px, 7vw, 34px);
+    font-size: clamp(34px, 13vw, 56px);
   }
   .syn-hero-img {
     object-position: center top;

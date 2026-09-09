@@ -46,15 +46,18 @@ export default function Home() {
       })
     }
 
-    // DOM order: stencil top/middle/bottom, then the outline copies top/middle/
-    // bottom. Line i pairs stencil span-row i with outline span-row i+3.
+    // Five stacked lines. DOM order: the five stencil copies, then the five
+    // outline copies — line i pairs stencil span-row i with outline row i+LINES.
+    // The middle line (index MID) locks left-to-right; the rest lock in an
+    // independent random order.
+    const LINES = 5
+    const MID = 2
     const titles = [
       ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title'),
     ]
-    const orders = [shuffled(), [...Array(N).keys()], shuffled()]
-    const lines = [0, 1, 2].map((i) => ({
-      rows: [fill(titles[i]), fill(titles[i + 3])],
-      order: orders[i],
+    const lines = Array.from({ length: LINES }, (_, i) => ({
+      rows: [fill(titles[i]), fill(titles[i + LINES])],
+      order: i === MID ? [...Array(N).keys()] : shuffled(),
       locked: new Set<number>(),
     }))
 
@@ -190,13 +193,17 @@ export default function Home() {
           decoding="async"
         />
         <div className="syn-hero-plate">
-          <span className="syn-hero-title" aria-hidden="true">
-            Syndicate
-          </span>
-          <h1 className="syn-hero-title">Syndicate</h1>
-          <span className="syn-hero-title" aria-hidden="true">
-            Syndicate
-          </span>
+          {[0, 1, 2, 3, 4].map((i) =>
+            i === 2 ? (
+              <h1 key={i} className="syn-hero-title">
+                Syndicate
+              </h1>
+            ) : (
+              <span key={i} className="syn-hero-title" aria-hidden="true">
+                Syndicate
+              </span>
+            ),
+          )}
         </div>
         <canvas
           ref={canvasRef}
@@ -210,9 +217,11 @@ export default function Home() {
             above the static so the letterforms stay legible over dark photo.
             One per stacked line, positioned to match the stencil copies. */}
         <div className="syn-hero-plate syn-hero-plate--edge" aria-hidden="true">
-          <span className="syn-hero-title">Syndicate</span>
-          <span className="syn-hero-title">Syndicate</span>
-          <span className="syn-hero-title">Syndicate</span>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <span key={i} className="syn-hero-title">
+              Syndicate
+            </span>
+          ))}
         </div>
         {!introDone && <div className="syn-hero-intro" aria-hidden="true" />}
       </section>
