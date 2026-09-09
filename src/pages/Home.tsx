@@ -30,6 +30,13 @@ export default function Home() {
     const NARROW = 'I1!|/\\:;'
     const N = WORD.length
     const poolAt = [...WORD].map((ch) => (ch === 'I' ? NARROW : POOL))
+    // Post-intro loop: cycle these through all five rows in unison, then back
+    // to SYNDICATE. Each is centred in the nine slots; unused slots collapse.
+    const NAMES = ['MASSIMO', 'EVAN', 'ADAM', 'SAM', 'DANTE']
+    const startFor = (word: string) => (N - word.length) >> 1
+    // What's currently shown (for the glitch to restore to the right letters).
+    let currentWord = WORD
+    let currentStart = 0
 
     // Persistent <span> per slot, so a locking letter can be tweened without a
     // per-flicker rebuild wiping it.
@@ -67,6 +74,8 @@ export default function Home() {
       rows: [fill(titles[i]), fill(titles[i + LINES])],
       locked: new Set<number>(),
     }))
+    // Every span (5 rows x 2 layers x 9 slots) for bulk width morphing.
+    const allSlots = lines.flatMap((ln) => [...ln.rows[0], ...ln.rows[1]])
 
     const settles: ReturnType<typeof gsap.fromTo>[] = []
     // Lock one (row, position): write the final letter to its stencil + outline
@@ -109,6 +118,53 @@ export default function Home() {
             const pool = poolAt[k]
             write(k, ln, pool[(Math.random() * pool.length) | 0])
           }
+      })
+    }
+
+    // ---- Post-intro name cycle -------------------------------------------
+    // Scramble every active slot across all five rows to the same random
+    // glyphs; slots outside the centred word are blank.
+    const flickWord = (word: string) => {
+      if (throttled()) return
+      const start = startFor(word)
+      const syn = word === WORD
+      lines.forEach((ln) => {
+        for (let k = 0; k < N; k++) {
+          const active = k >= start && k < start + word.length
+          if (!active) {
+            write(k, ln, '')
+            continue
+          }
+          const pool = syn ? poolAt[k] : POOL
+          write(k, ln, pool[(Math.random() * pool.length) | 0])
+        }
+      })
+    }
+    // Settle the word into place across all rows, blanking the unused slots.
+    const landWord = (word: string) => {
+      const start = startFor(word)
+      currentWord = word
+      currentStart = start
+      lines.forEach((ln) => {
+        for (let k = 0; k < N; k++) {
+          const i = k - start
+          write(k, ln, i >= 0 && i < word.length ? word[i] : '')
+        }
+      })
+    }
+    // Expand/collapse slots so the centred word fits, eased. SYNDICATE keeps
+    // its narrow "I" slot; names use uniform slots.
+    const morphSlots = (word: string) => {
+      const start = startFor(word)
+      return gsap.to(allSlots, {
+        width: (i: number) => {
+          const k = i % N
+          if (k < start || k >= start + word.length) return '0em'
+          return word === WORD && k === 4 ? '0.34em' : '0.66em'
+        },
+        duration: 0.5,
+        ease: 'power2.out',
+        overwrite: 'auto',
       })
     }
 
@@ -173,18 +229,20 @@ export default function Home() {
     const applyGap = () => plates.forEach((el) => (el.style.rowGap = `${gp.v}px`))
     applyGap()
 
-    // Occasional post-settle glitch: every 2.2-2.4s, re-scramble one random
-    // letter in one random row for <300ms, then set it back. One pending
-    // timeout at a time (`timer`), cleared on unmount.
+    // Glitch: every 2.2-2.4s while `glitchOn`, re-scramble one random letter of
+    // the currently-shown word in one random row for <300ms, then restore it.
+    // One pending timeout at a time (`timer`), cleared on unmount.
     let timer = 0
+    let glitchOn = false
     const scheduleGlitch = () => {
       timer = window.setTimeout(runGlitch, 2200 + Math.random() * 200)
     }
     const runGlitch = () => {
+      const k = currentStart + ((Math.random() * currentWord.length) | 0)
       const ln = lines[(Math.random() * LINES) | 0]
-      const k = (Math.random() * N) | 0
-      const pool = poolAt[k]
+      const pool = currentWord === WORD && k === 4 ? NARROW : POOL
       const spans = ln.rows.map((row) => row[k])
+      const correct = currentWord[k - currentStart]
       let left = 4 + ((Math.random() * 3) | 0) // 4-6 frames * 45ms = 180-270ms
       const cycle = () => {
         if (left-- > 0) {
@@ -192,18 +250,47 @@ export default function Home() {
           spans.forEach((s) => (s.textContent = ch))
           timer = window.setTimeout(cycle, 45)
         } else {
-          spans.forEach((s) => (s.textContent = WORD[k]))
-          scheduleGlitch()
+          spans.forEach((s) => (s.textContent = correct))
+          if (glitchOn) scheduleGlitch()
         }
       }
       cycle()
     }
 
     const ctx = gsap.context(() => {
+      // Looping post-intro sequence: hold, cycle the names through all rows in
+      // unison, hold DANTE (with glitches), scramble back to SYNDICATE, repeat.
+      const cycleTl = gsap.timeline({ repeat: -1, paused: true })
+      const nameStep = (word: string, dur: number) => {
+        cycleTl
+          .call(() => void morphSlots(word))
+          .to({}, { duration: dur, onUpdate: () => flickWord(word) })
+          .call(() => landWord(word))
+      }
+      cycleTl
+        .to({}, { duration: 1 }) // hold the settled SYNDICATE
+        .call(() => {
+          glitchOn = false
+          gsap.set(allSlots, { marginLeft: 0, clipPath: 'none' })
+        })
+      NAMES.forEach((name) => nameStep(name, 2))
+      cycleTl
+        .call(() => {
+          glitchOn = true
+          scheduleGlitch()
+        })
+        .to({}, { duration: 5 }) // hold DANTE, glitches fire during this
+        .call(() => {
+          glitchOn = false
+          clearTimeout(timer)
+        })
+        .call(() => gsap.set(allSlots, { clearProps: 'marginLeft,clipPath' }))
+      nameStep(WORD, 3) // scramble back to SYNDICATE
+
       const tl = gsap.timeline({
         onComplete: () => {
           setIntroDone(true)
-          scheduleGlitch()
+          cycleTl.play()
         },
       })
       tl.set('.syn-hero-intro', { autoAlpha: 1 })
@@ -252,6 +339,7 @@ export default function Home() {
     return () => {
       clearTimeout(timer)
       ctx.revert()
+      gsap.killTweensOf(allSlots)
       settles.forEach((t) => t.kill())
     }
   }, [])
