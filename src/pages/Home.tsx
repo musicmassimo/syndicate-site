@@ -14,7 +14,7 @@ const H = 180
 // Web-optimised JPEGs (~1400px) of the multi-MB PNG originals so the scrubbed
 // reveal stays smooth; the *.png originals stay in /public/images.
 const ABOUT_PHOTOS = [
-  '/images/syndicate-photo-7-web.jpg',
+  '/images/syndicate-photo-9-web.jpg',
   '/images/syndicate-photo-4-web.jpg',
   '/images/syndicate-photo-5-web.jpg',
 ]
