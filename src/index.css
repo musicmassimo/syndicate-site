@@ -74,7 +74,7 @@ body {
   font-size: clamp(44px, 13.5vw, 200px);
   /* Tight enough that the stacked caps sit adjacent with no visible gap. */
   line-height: 0.8;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   text-transform: uppercase;
   text-align: center;
   white-space: nowrap;
@@ -89,17 +89,23 @@ body {
 
 /* Fixed-width slot for the code-cracking scramble (see Home.tsx) — the block
    never reflows while glyphs of differing widths cycle inside, and the slots
-   stay in place at the settled state too. */
+   stay in place at the settled state too. Sized so the settled caps sit almost
+   edge-to-edge (a heavy glyph or two just touches; nothing overlaps). */
 .syn-slot {
   display: inline-block;
-  width: 0.72em;
+  width: 0.66em;
   text-align: center;
 }
 /* The "I" is a thin vertical bar; a full-width slot would leave a visible gap
    on each side, so it gets a proportionally narrower fixed width. Its scramble
    pool is all narrow glyphs, so nothing meaningful overflows. */
 .syn-slot--i {
-  width: 0.38em;
+  width: 0.34em;
+}
+/* "N" then "D" are both vertical-stroke sided; pull the D (and the tail after
+   it) left so the two bars meet with no seam, matching the other pairs. */
+.syn-slot--nd {
+  margin-left: -0.09em;
 }
 
 /* Definition pass: a second copy of the title above the static, contributing

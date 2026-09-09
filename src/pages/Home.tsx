@@ -31,32 +31,27 @@ export default function Home() {
     const N = WORD.length
     const poolAt = [...WORD].map((ch) => (ch === 'I' ? NARROW : POOL))
 
-    const shuffled = () => {
-      const a = [...Array(N).keys()]
-      for (let i = N; i-- > 1; ) {
-        const j = (Math.random() * (i + 1)) | 0
-        ;[a[i], a[j]] = [a[j], a[i]]
-      }
-      return a
-    }
     // Persistent <span> per slot, so a locking letter can be tweened without a
     // per-flicker rebuild wiping it.
     const fill = (el: Element) => {
       el.textContent = ''
-      return Array.from(WORD, (ch) => {
+      return Array.from(WORD, (ch, i) => {
         const s = document.createElement('span')
-        // The "I" slot gets a narrower fixed width so it doesn't leave a gap.
-        s.className = ch === 'I' ? 'syn-slot syn-slot--i' : 'syn-slot'
+        // The "I" slot is narrower (thin bar); the "D" after an "N" is nudged
+        // left so the two verticals merge instead of leaving a seam.
+        s.className =
+          ch === 'I'
+            ? 'syn-slot syn-slot--i'
+            : ch === 'D' && WORD[i - 1] === 'N'
+              ? 'syn-slot syn-slot--nd'
+              : 'syn-slot'
         return el.appendChild(s)
       })
     }
 
     // Five stacked lines. DOM order: the five stencil copies, then the five
     // outline copies — line i pairs stencil span-row i with outline row i+LINES.
-    // The middle line (index MID) locks left-to-right; the rest lock in an
-    // independent random order.
     const LINES = 5
-    const MID = 2
     const titles = [
       ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title'),
     ]
@@ -67,55 +62,83 @@ export default function Home() {
     ]
     const lines = Array.from({ length: LINES }, (_, i) => ({
       rows: [fill(titles[i]), fill(titles[i + LINES])],
-      order: i === MID ? [...Array(N).keys()] : shuffled(),
       locked: new Set<number>(),
     }))
 
     const settles: ReturnType<typeof gsap.fromTo>[] = []
-    const lockStep = (step: number) => {
-      lines.forEach((ln) => {
-        const idx = ln.order[step]
-        ln.locked.add(idx)
-        // Stencil + outline span for this slot, animated as one so their
-        // letterforms stay frame-perfectly aligned.
-        const spans = ln.rows.map((row) => row[idx])
-        spans.forEach((s) => (s.textContent = WORD[idx]))
-        settles.push(
-          gsap.fromTo(
-            spans,
-            { scale: 1.3, opacity: 0.4 },
-            { scale: 1, opacity: 1, duration: 0.4, ease: 'power2.out' },
-          ),
-        )
-      })
+    // Lock one (row, position): write the final letter to its stencil + outline
+    // span and run the settle tween over both at once, so they stay aligned.
+    const lockSlot = (ln: (typeof lines)[number], k: number) => {
+      ln.locked.add(k)
+      const spans = ln.rows.map((row) => row[k])
+      spans.forEach((s) => (s.textContent = WORD[k]))
+      settles.push(
+        gsap.fromTo(
+          spans,
+          { scale: 1.3, opacity: 0.4 },
+          { scale: 1, opacity: 1, duration: 0.4, ease: 'power2.out' },
+        ),
+      )
     }
 
-    const p = { step: 0 }
-    let done = 0
     let lastFlip = 0
-    const tick = () => {
-      while (done < Math.round(p.step)) lockStep(done++)
+    const throttled = () => {
       const now = performance.now()
-      if (now - lastFlip < 80) return // ~12 glyph changes/sec, not per-frame
+      if (now - lastFlip < 80) return true // ~12 glyph changes/sec, not per-frame
       lastFlip = now
+      return false
+    }
+    const scrub = (t: number) => {
+      img.style.transform =
+        `scale(${1 + 0.04 * t}) ` +
+        `translate(${(Math.random() * 2 - 1) * 14 * t}px, ` +
+        `${(Math.random() * 2 - 1) * 14 * t}px)`
+    }
+    const write = (k: number, ln: (typeof lines)[number], ch: string) =>
+      ln.rows.forEach((row) => (row[k].textContent = ch))
+    // Flicker one (row, position) — stencil + outline span together.
+    const flickOne = (ln: (typeof lines)[number], k: number, t: number) => {
+      if (throttled()) return
+      const pool = poolAt[k]
+      write(k, ln, pool[(Math.random() * pool.length) | 0])
+      scrub(t)
+    }
+    // Flicker every still-unlocked (row, position).
+    const flick = (t: number) => {
+      if (throttled()) return
       lines.forEach((ln) => {
         for (let k = 0; k < N; k++)
           if (!ln.locked.has(k)) {
             const pool = poolAt[k]
-            // One glyph per slot, written to BOTH the stencil and outline span
-            // so the outline traces exactly the character the photo fills.
-            const ch = pool[(Math.random() * pool.length) | 0]
-            ln.rows.forEach((row) => (row[k].textContent = ch))
+            write(k, ln, pool[(Math.random() * pool.length) | 0])
           }
       })
-      // Scrub the photo behind the letters in time with the glyph flicker; the
-      // amplitude fades to 0 as the letters lock, so it settles with them.
-      const t = 1 - done / N
-      img.style.transform =
-        `scale(${1 + 0.045 * t}) ` +
-        `translate(${(Math.random() * 2 - 1) * 16 * t}px, ` +
-        `${(Math.random() * 2 - 1) * 16 * t}px)`
+      scrub(t)
     }
+
+    // PHASE 1: spell SYNDICATE once, strictly left to right — exactly ONE
+    // position scrambles at a time (in a randomly chosen row), then locks
+    // before the next position starts.
+    const rowFor = Array.from({ length: N }, () => (Math.random() * LINES) | 0)
+    const p1 = { step: 0 }
+    let spelled = 0
+    const tickPhase1 = () => {
+      const target = Math.floor(p1.step)
+      while (spelled < target) {
+        lockSlot(lines[rowFor[spelled]], spelled)
+        spelled++
+      }
+      if (spelled < N)
+        flickOne(lines[rowFor[spelled]], spelled, 1 - (spelled / N) * 0.7)
+    }
+    // PHASE 2 hold: the spelled letters stay frozen; every other position
+    // across all 5 rows scrambles together for 2s.
+    const tickHold = () => flick(0.22)
+    // PHASE 2 lock: settle every remaining slot to its final letter.
+    const lockRest = () =>
+      lines.forEach((ln) => {
+        for (let k = 0; k < N; k++) if (!ln.locked.has(k)) lockSlot(ln, k)
+      })
 
     // Rows start spread apart (row-gap 22px) and ease flush once locked. The
     // proxy + onUpdate guarantees a smooth interpolation; CSS gap 0 is the
@@ -165,13 +188,21 @@ export default function Home() {
           ease: 'power2.inOut',
           delay: 0.45,
         })
+        // Phase 1: spell SYNDICATE once, one position at a time, L->R.
         .to(
-          p,
-          { step: N, duration: N * 0.7, ease: `steps(${N})`, onUpdate: tick },
+          p1,
+          {
+            step: N,
+            duration: N * 0.7,
+            ease: `steps(${N})`,
+            onUpdate: tickPhase1,
+          },
           0.6,
         )
-        // Once every letter is locked: rows ease flush and the photo eases to
-        // rest, together.
+        // Phase 2: hold 2s with the rest still scrambling, then lock them all.
+        .to({}, { duration: 2, onUpdate: tickHold })
+        .call(lockRest)
+        // Once everything's locked: rows ease flush and the photo eases to rest.
         .to(gp, { v: 0, duration: 0.6, ease: 'power2.out', onUpdate: applyGap })
         .to(
           '.syn-hero-img',
