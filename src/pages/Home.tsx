@@ -75,8 +75,8 @@ export default function Home() {
       settles.push(
         gsap.fromTo(
           spans,
-          { scale: 1.3, opacity: 0.4 },
-          { scale: 1, opacity: 1, duration: 0.4, ease: 'power2.out' },
+          { scale: 1.14, opacity: 0.55 },
+          { scale: 1, opacity: 1, duration: 0.45, ease: 'power2.out' },
         ),
       )
     }
@@ -116,29 +116,47 @@ export default function Home() {
       scrub(t)
     }
 
-    // PHASE 1: spell SYNDICATE once, strictly left to right — exactly ONE
-    // position scrambles at a time (in a randomly chosen row), then locks
-    // before the next position starts.
+    // PHASE 1: spell SYNDICATE once, left to right — exactly ONE position
+    // scrambles at a time (in a randomly chosen row) on an even cadence, then
+    // locks before the next starts.
     const rowFor = Array.from({ length: N }, () => (Math.random() * LINES) | 0)
-    const p1 = { step: 0 }
+    const p1 = { v: 0 }
     let spelled = 0
     const tickPhase1 = () => {
-      const target = Math.floor(p1.step)
-      while (spelled < target) {
+      while (spelled < Math.floor(p1.v)) {
         lockSlot(lines[rowFor[spelled]], spelled)
         spelled++
       }
       if (spelled < N)
-        flickOne(lines[rowFor[spelled]], spelled, 1 - (spelled / N) * 0.7)
+        flickOne(lines[rowFor[spelled]], spelled, 0.2 + 0.15 * (1 - spelled / N))
     }
-    // PHASE 2 hold: the spelled letters stay frozen; every other position
-    // across all 5 rows scrambles together for 2s.
-    const tickHold = () => flick(0.22)
-    // PHASE 2 lock: settle every remaining slot to its final letter.
-    const lockRest = () =>
-      lines.forEach((ln) => {
-        for (let k = 0; k < N; k++) if (!ln.locked.has(k)) lockSlot(ln, k)
-      })
+
+    // PHASE 2: every slot phase 1 didn't fill (the 4 other rows per position).
+    // Collect the spans (to crossfade in) and the (row, position) pairs (to
+    // resolve in a wave), shuffled so the fill reads as noise crystallising.
+    const restSlots: Array<[(typeof lines)[number], number]> = []
+    const p2spans: HTMLElement[] = []
+    lines.forEach((ln, li) => {
+      for (let k = 0; k < N; k++) {
+        if (li === rowFor[k]) continue
+        restSlots.push([ln, k])
+        p2spans.push(ln.rows[0][k], ln.rows[1][k])
+      }
+    })
+    for (let i = restSlots.length; i-- > 1; ) {
+      const j = (Math.random() * (i + 1)) | 0
+      ;[restSlots[i], restSlots[j]] = [restSlots[j], restSlots[i]]
+    }
+    const tickHold = () => flick(0.4)
+    const pr = { v: 0 }
+    let restDone = 0
+    const lockRestWave = () => {
+      const target = Math.round(pr.v * restSlots.length)
+      while (restDone < target) {
+        const [ln, k] = restSlots[restDone++]
+        lockSlot(ln, k)
+      }
+    }
 
     // Rows start spread apart (row-gap 22px) and ease flush once locked. The
     // proxy + onUpdate guarantees a smooth interpolation; CSS gap 0 is the
@@ -181,32 +199,50 @@ export default function Home() {
           scheduleGlitch()
         },
       })
+      const OVERLAP = 0.3
       tl.set('.syn-hero-intro', { autoAlpha: 1 })
+        .set(p2spans, { opacity: 0 })
         .to('.syn-hero-intro', {
           autoAlpha: 0,
           duration: 1.3,
-          ease: 'power2.inOut',
+          ease: 'power2.out',
           delay: 0.45,
         })
-        // Phase 1: spell SYNDICATE once, one position at a time, L->R.
+        // Phase 1: spell the word once, one position at a time, even cadence.
         .to(
           p1,
-          {
-            step: N,
-            duration: N * 0.7,
-            ease: `steps(${N})`,
-            onUpdate: tickPhase1,
-          },
+          { v: N, duration: N * 0.6, ease: 'none', onUpdate: tickPhase1 },
           0.6,
         )
-        // Phase 2: hold 2s with the rest still scrambling, then lock them all.
-        .to({}, { duration: 2, onUpdate: tickHold })
-        .call(lockRest)
-        // Once everything's locked: rows ease flush and the photo eases to rest.
-        .to(gp, { v: 0, duration: 0.6, ease: 'power2.out', onUpdate: applyGap })
+        // Phase 2 crossfades in just before phase 1's last lock — no hard cut.
+        .addLabel('p2', `>-${OVERLAP}`)
+        .to({}, { duration: 2 + OVERLAP, onUpdate: tickHold }, 'p2')
+        .to(
+          p2spans,
+          {
+            opacity: 1,
+            duration: 0.7,
+            ease: 'power2.out',
+            stagger: { amount: 0.5, from: 'random' },
+          },
+          'p2',
+        )
+        // The remaining letters resolve in a quick eased wave...
+        .to(pr, {
+          v: 1,
+          duration: 0.7,
+          ease: 'power2.out',
+          onUpdate: lockRestWave,
+        })
+        // ...flowing straight into the rows compressing and the photo settling.
+        .to(
+          gp,
+          { v: 0, duration: 0.7, ease: 'power2.out', onUpdate: applyGap },
+          '>-0.35',
+        )
         .to(
           '.syn-hero-img',
-          { scale: 1, x: 0, y: 0, duration: 0.6, ease: 'power2.out' },
+          { scale: 1, x: 0, y: 0, duration: 0.7, ease: 'power2.out' },
           '<',
         )
     }, heroRef)
