@@ -55,7 +55,6 @@ export default function Home() {
     const titles = [
       ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title'),
     ]
-    const img = heroRef.current.querySelector<HTMLImageElement>('.syn-hero-img')!
     // Both the stencil plate and its outline copy — kept in row-gap sync.
     const plates = [
       ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-plate'),
@@ -88,23 +87,17 @@ export default function Home() {
       lastFlip = now
       return false
     }
-    const scrub = (t: number) => {
-      img.style.transform =
-        `scale(${1 + 0.04 * t}) ` +
-        `translate(${(Math.random() * 2 - 1) * 14 * t}px, ` +
-        `${(Math.random() * 2 - 1) * 14 * t}px)`
-    }
     const write = (k: number, ln: (typeof lines)[number], ch: string) =>
       ln.rows.forEach((row) => (row[k].textContent = ch))
-    // Flicker one (row, position) — stencil + outline span together.
-    const flickOne = (ln: (typeof lines)[number], k: number, t: number) => {
+    // Flicker one (row, position) — stencil + outline span together. Only the
+    // glyph changes; nothing about the letter layer moves.
+    const flickOne = (ln: (typeof lines)[number], k: number) => {
       if (throttled()) return
       const pool = poolAt[k]
       write(k, ln, pool[(Math.random() * pool.length) | 0])
-      scrub(t)
     }
     // Flicker every still-unlocked (row, position).
-    const flick = (t: number) => {
+    const flick = () => {
       if (throttled()) return
       lines.forEach((ln) => {
         for (let k = 0; k < N; k++)
@@ -113,7 +106,6 @@ export default function Home() {
             write(k, ln, pool[(Math.random() * pool.length) | 0])
           }
       })
-      scrub(t)
     }
 
     // PHASE 1: spell SYNDICATE once, left to right — exactly ONE position
@@ -140,8 +132,7 @@ export default function Home() {
         lockSlot(lines[rowFor[spelled]], spelled)
         spelled++
       }
-      if (spelled < N)
-        flickOne(lines[rowFor[spelled]], spelled, 0.2 + 0.15 * (1 - spelled / N))
+      if (spelled < N) flickOne(lines[rowFor[spelled]], spelled)
     }
 
     // PHASE 2: every slot phase 1 didn't fill (the 4 other rows per position).
@@ -160,7 +151,7 @@ export default function Home() {
       const j = (Math.random() * (i + 1)) | 0
       ;[restSlots[i], restSlots[j]] = [restSlots[j], restSlots[i]]
     }
-    const tickHold = () => flick(0.4)
+    const tickHold = () => flick()
     const pr = { v: 0 }
     let restDone = 0
     const lockRestWave = () => {
@@ -207,7 +198,6 @@ export default function Home() {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         onComplete: () => {
-          img.style.transform = ''
           setIntroDone(true)
           scheduleGlitch()
         },
@@ -226,9 +216,7 @@ export default function Home() {
           { v: N, duration: N * 0.6, ease: 'none', onUpdate: tickPhase1 },
           0.6,
         )
-        // Hold: the spelled word sits completely static for 2s — no scramble
-        // anywhere, and the photo is parked at rest.
-        .set('.syn-hero-img', { clearProps: 'transform' })
+        // Hold: the spelled word sits completely static for 2s — no scramble.
         .to({}, { duration: 2 })
         // Phase 2: the remaining slots scramble for 2.5s, crossfading in.
         .addLabel('p2')
@@ -250,16 +238,11 @@ export default function Home() {
           ease: 'power2.out',
           onUpdate: lockRestWave,
         })
-        // ...flowing straight into the rows compressing and the photo settling.
+        // ...flowing straight into the rows compressing to flush.
         .to(
           gp,
           { v: 0, duration: 0.7, ease: 'power2.out', onUpdate: applyGap },
           '>-0.35',
-        )
-        .to(
-          '.syn-hero-img',
-          { scale: 1, x: 0, y: 0, duration: 0.7, ease: 'power2.out' },
-          '<',
         )
     }, heroRef)
     return () => {
