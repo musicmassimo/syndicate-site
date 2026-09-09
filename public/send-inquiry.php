@@ -1,8 +1,9 @@
 <?php
 // Booking inquiry relay for the Syndicate site. The React form (Home.tsx) POSTs
 // JSON here; this calls Brevo's transactional email API server-side so the API
-// key never reaches the browser. Key comes from the BREVO_API_KEY env var —
-// set it in the host's PHP environment, never commit it.
+// key never reaches the browser. The key lives in brevo-config.php one level
+// above public_html (outside the web root, so it is never served); upload that
+// file separately and never commit it.
 
 header('Content-Type: application/json');
 
@@ -12,7 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$apiKey = getenv('BREVO_API_KEY');
+$configPath = dirname(__DIR__) . '/brevo-config.php';
+$config = is_readable($configPath) ? require $configPath : [];
+$apiKey = $config['api_key'] ?? '';
 if (!$apiKey) {
     http_response_code(500);
     echo json_encode(['error' => 'Email is not configured. Please email us directly.']);

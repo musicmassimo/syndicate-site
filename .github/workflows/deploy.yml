@@ -28,10 +28,9 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          # This FTP account is already scoped to the web root, so uploads go
-          # straight to ./ — setting public_html/ nested the whole build one
-          # level too deep.
-          server-dir: ./
+          # The FTP user lands in the site's public_html; this is where the
+          # build (index.html, assets/, send-inquiry.php) must go.
+          server-dir: public_html/
           exclude: |
             **/.git*
             **/.git*/**
