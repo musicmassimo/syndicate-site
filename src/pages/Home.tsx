@@ -30,13 +30,11 @@ export default function Home() {
     const NARROW = 'I1!|/\\:;'
     const N = WORD.length
     const poolAt = [...WORD].map((ch) => (ch === 'I' ? NARROW : POOL))
-    // Post-intro loop: cycle these through all five rows in unison, then back
-    // to SYNDICATE. Each is centred in the nine slots; unused slots collapse.
+    // Post-intro loop: convert the five rows to these names one row at a time
+    // (random row order), hold, then scramble every row back to SYNDICATE.
+    // Each name is centred in the nine slots; unused slots collapse.
     const NAMES = ['MASSIMO', 'EVAN', 'ADAM', 'SAM', 'DANTE']
     const startFor = (word: string) => (N - word.length) >> 1
-    // What's currently shown (for the glitch to restore to the right letters).
-    let currentWord = WORD
-    let currentStart = 0
 
     // Persistent <span> per slot, so a locking letter can be tweened without a
     // per-flicker rebuild wiping it.
@@ -121,52 +119,70 @@ export default function Home() {
       })
     }
 
-    // ---- Post-intro name cycle -------------------------------------------
-    // Scramble every active slot across all five rows to the same random
-    // glyphs; slots outside the centred word are blank.
-    const flickWord = (word: string) => {
-      if (throttled()) return
+    // ---- Post-intro name cycle -----------------------------------------------
+    // What each row currently shows (so the glitch restores the right letters).
+    const rowWord: string[] = Array(LINES).fill(WORD)
+    // Target width for slot k of a given word (collapsed outside the centred
+    // word; SYNDICATE keeps its narrow "I", names use uniform slots).
+    const slotWidth = (word: string, k: number) => {
+      const start = startFor(word)
+      if (k < start || k >= start + word.length) return '0em'
+      return word === WORD && k === 4 ? '0.34em' : '0.66em'
+    }
+    // Scramble one row's active slots to random glyphs; blank the rest.
+    // (Callers gate with throttled() so multi-row calls stay in one tick.)
+    const flickRow = (ln: (typeof lines)[number], word: string) => {
       const start = startFor(word)
       const syn = word === WORD
-      lines.forEach((ln) => {
-        for (let k = 0; k < N; k++) {
-          const active = k >= start && k < start + word.length
-          if (!active) {
-            write(k, ln, '')
-            continue
-          }
-          const pool = syn ? poolAt[k] : POOL
-          write(k, ln, pool[(Math.random() * pool.length) | 0])
+      for (let k = 0; k < N; k++) {
+        const active = k >= start && k < start + word.length
+        if (!active) {
+          write(k, ln, '')
+          continue
         }
-      })
+        const pool = syn ? poolAt[k] : POOL
+        write(k, ln, pool[(Math.random() * pool.length) | 0])
+      }
     }
-    // Settle the word into place across all rows, blanking the unused slots.
-    const landWord = (word: string) => {
-      const start = startFor(word)
-      currentWord = word
-      currentStart = start
-      lines.forEach((ln) => {
-        for (let k = 0; k < N; k++) {
-          const i = k - start
-          write(k, ln, i >= 0 && i < word.length ? word[i] : '')
-        }
-      })
+    const tickRow = (ln: (typeof lines)[number], word: string) => {
+      if (!throttled()) flickRow(ln, word)
     }
-    // Expand/collapse slots so the centred word fits, eased. SYNDICATE keeps
-    // its narrow "I" slot; names use uniform slots.
-    const morphSlots = (word: string) => {
+    const flickWord = (word: string) => {
+      if (throttled()) return
+      lines.forEach((ln) => flickRow(ln, word))
+    }
+    // Settle a word into one row, recording it and blanking unused slots.
+    const landRow = (ln: (typeof lines)[number], li: number, word: string) => {
       const start = startFor(word)
-      return gsap.to(allSlots, {
-        width: (i: number) => {
-          const k = i % N
-          if (k < start || k >= start + word.length) return '0em'
-          return word === WORD && k === 4 ? '0.34em' : '0.66em'
-        },
+      rowWord[li] = word
+      for (let k = 0; k < N; k++) {
+        const i = k - start
+        write(k, ln, i >= 0 && i < word.length ? word[i] : '')
+      }
+    }
+    const landWord = (word: string) =>
+      lines.forEach((ln, li) => landRow(ln, li, word))
+    // Ease one row's slot widths to fit `word`.
+    const morphRow = (ln: (typeof lines)[number], word: string) =>
+      gsap.to([...ln.rows[0], ...ln.rows[1]], {
+        width: (i: number) => slotWidth(word, i % N),
         duration: 0.5,
         ease: 'power2.out',
         overwrite: 'auto',
       })
-    }
+    const morphSlots = (word: string) =>
+      gsap.to(allSlots, {
+        width: (i: number) => slotWidth(word, i % N),
+        duration: 0.5,
+        ease: 'power2.out',
+        overwrite: 'auto',
+      })
+    // Drop SYNDICATE's N/D seam clip + margin from one row (for names).
+    const neutralizeRow = (ln: (typeof lines)[number]) =>
+      gsap.set([...ln.rows[0], ...ln.rows[1]], {
+        marginLeft: 0,
+        clipPath: 'none',
+      })
 
     // PHASE 1: spell SYNDICATE once, left to right — exactly ONE position
     // scrambles at a time on an even cadence, then locks before the next
@@ -238,11 +254,14 @@ export default function Home() {
       timer = window.setTimeout(runGlitch, 2200 + Math.random() * 200)
     }
     const runGlitch = () => {
-      const k = currentStart + ((Math.random() * currentWord.length) | 0)
-      const ln = lines[(Math.random() * LINES) | 0]
-      const pool = currentWord === WORD && k === 4 ? NARROW : POOL
+      const li = (Math.random() * LINES) | 0
+      const word = rowWord[li]
+      const start = startFor(word)
+      const k = start + ((Math.random() * word.length) | 0)
+      const ln = lines[li]
+      const pool = word === WORD && k === 4 ? NARROW : POOL
       const spans = ln.rows.map((row) => row[k])
-      const correct = currentWord[k - currentStart]
+      const correct = word[k - start]
       let left = 4 + ((Math.random() * 3) | 0) // 4-6 frames * 45ms = 180-270ms
       const cycle = () => {
         if (left-- > 0) {
@@ -258,34 +277,51 @@ export default function Home() {
     }
 
     const ctx = gsap.context(() => {
-      // Looping post-intro sequence: hold, cycle the names through all rows in
-      // unison, hold DANTE (with glitches), scramble back to SYNDICATE, repeat.
+      // Looping post-intro sequence: convert rows to names one at a time in a
+      // fresh random order, hold (with glitches), scramble every row back to
+      // SYNDICATE, repeat.
       const cycleTl = gsap.timeline({ repeat: -1, paused: true })
-      const nameStep = (word: string, dur: number) => {
+      // Random row order, re-shuffled at the top of every loop. The name steps
+      // read rowOrder[i] at run time, so they follow the current shuffle.
+      let rowOrder: number[] = []
+      const nameRowStep = (word: string, i: number) => {
         cycleTl
-          .call(() => void morphSlots(word))
-          .to({}, { duration: dur, onUpdate: () => flickWord(word) })
-          .call(() => landWord(word))
+          .call(() => {
+            const ln = lines[rowOrder[i]]
+            neutralizeRow(ln)
+            morphRow(ln, word)
+          })
+          .to(
+            {},
+            {
+              duration: 2,
+              onUpdate: () => tickRow(lines[rowOrder[i]], word),
+            },
+          )
+          .call(() => landRow(lines[rowOrder[i]], rowOrder[i], word))
       }
       cycleTl
         .to({}, { duration: 1 }) // hold the settled SYNDICATE
         .call(() => {
           glitchOn = false
-          gsap.set(allSlots, { marginLeft: 0, clipPath: 'none' })
+          rowOrder = shuffle([...Array(LINES).keys()])
         })
-      NAMES.forEach((name) => nameStep(name, 2))
+      NAMES.forEach((name, i) => nameRowStep(name, i))
       cycleTl
         .call(() => {
           glitchOn = true
           scheduleGlitch()
         })
-        .to({}, { duration: 5 }) // hold DANTE, glitches fire during this
+        .to({}, { duration: 5 }) // hold the five names, glitches fire here
         .call(() => {
           glitchOn = false
           clearTimeout(timer)
+          gsap.set(allSlots, { clearProps: 'marginLeft,clipPath' })
         })
-        .call(() => gsap.set(allSlots, { clearProps: 'marginLeft,clipPath' }))
-      nameStep(WORD, 3) // scramble back to SYNDICATE
+        // Scramble every row back to SYNDICATE together.
+        .call(() => void morphSlots(WORD))
+        .to({}, { duration: 3, onUpdate: () => flickWord(WORD) })
+        .call(() => landWord(WORD))
 
       const tl = gsap.timeline({
         onComplete: () => {
