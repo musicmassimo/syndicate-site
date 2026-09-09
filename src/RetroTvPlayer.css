@@ -1,0 +1,412 @@
+/* ============================================================================
+   RetroTvPlayer — wood-cabinet CRT television
+   Structure (see RetroTvPlayer.jsx):
+     .retro-tv-wrapper
+       .tv-cabinet                 - brown wood-gradient shell
+         .tv-screen-bezel          - dark plastic frame
+           .tv-screen-glass        - CRT display  (.is-on / .is-off / .is-switching)
+             .tv-video             - YouTube iframe
+             .tv-static            - channel-change flash (solid, no grain)
+             .crt-scanlines        - scanline + shadow-mask grid overlay
+             .crt-flicker          - subtle whole-screen flicker
+             .screen-glare         - glossy corner highlight
+             .screen-curve-shadow  - inset vignette / tube curvature
+         .tv-controls              - side panel
+           .tv-brand
+           .tv-knob  (x2)
+           .speaker-grille > .grille-slat  (x6)
+           .power-button
+   No animated grain / static-noise textures anywhere — the "static" layer is
+   a flat bright flash.
+   ========================================================================== */
+
+.retro-tv-wrapper {
+  --wood-light: #8a5a34;
+  --wood-mid: #6b4327;
+  --wood-dark: #3c2515;
+  --plastic: #171512;
+
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  color: #e8e2d6;
+  font-family: 'Space Mono', 'Courier New', ui-monospace, monospace;
+}
+
+/* ---- Cabinet ------------------------------------------------------------- */
+.tv-cabinet {
+  display: flex;
+  gap: clamp(12px, 2.5vw, 24px);
+  padding: clamp(14px, 3vw, 26px);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 22%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.05) 0 3px,
+      rgba(255, 255, 255, 0.035) 3px 6px,
+      rgba(0, 0, 0, 0.04) 6px 11px
+    ),
+    linear-gradient(
+      150deg,
+      var(--wood-light),
+      var(--wood-mid) 45%,
+      var(--wood-dark)
+    );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.12),
+    inset 0 -8px 20px rgba(0, 0, 0, 0.45),
+    0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Bezel ------------------------------------------------------------- */
+.tv-screen-bezel {
+  flex: 1;
+  min-width: 0;
+  padding: clamp(12px, 2.6vw, 22px);
+  border-radius: 14px;
+  background: linear-gradient(160deg, #2a2724, var(--plastic) 60%, #050505);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.7),
+    0 2px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* ---- Glass / CRT display --------------------------------------------------- */
+.tv-screen-glass {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 12px / 16px;
+  background: radial-gradient(
+    120% 120% at 50% 45%,
+    #1c2320 0%,
+    #0c0f0e 70%,
+    #050706 100%
+  );
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.8),
+    inset 0 0 22px rgba(0, 0, 0, 0.9);
+  isolation: isolate;
+  transition:
+    filter 0.25s ease,
+    background 0.3s ease;
+}
+.tv-screen-glass.is-off {
+  background: #050605;
+}
+.tv-screen-glass.is-switching {
+  filter: brightness(1.35) saturate(0.75);
+}
+
+.tv-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  z-index: 1;
+}
+
+/* Channel-change flash — a flat bright blip that fades out. No grain. */
+.tv-static {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    180deg,
+    rgba(240, 244, 246, 0.92),
+    rgba(205, 210, 214, 0.86)
+  );
+  animation: tv-flash 0.4s ease-out forwards;
+}
+.tv-static::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  background: rgba(255, 255, 255, 0.9);
+  filter: blur(6px);
+  animation: tv-roll 0.4s linear forwards;
+}
+@keyframes tv-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes tv-roll {
+  from {
+    top: -20%;
+  }
+  to {
+    top: 110%;
+  }
+}
+
+/* Power-off: a dim residual centre line. */
+.tv-screen-glass.is-off::after {
+  content: '';
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+  z-index: 5;
+}
+
+/* Scanline + faint vertical shadow-mask grid. */
+.crt-scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0 2px,
+      rgba(0, 0, 0, 0.28) 2px 3px
+    ),
+    repeating-linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0) 0 3px,
+      rgba(0, 0, 0, 0.14) 3px 4px
+    );
+  mix-blend-mode: multiply;
+}
+.tv-screen-glass.is-off .crt-scanlines {
+  opacity: 0;
+}
+
+/* Subtle whole-screen brightness flicker. */
+.crt-flicker {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.035);
+  opacity: 0.45;
+  animation: crt-flicker 0.13s steps(3, end) infinite;
+}
+@keyframes crt-flicker {
+  0% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 0.52;
+  }
+  100% {
+    opacity: 0.44;
+  }
+}
+.tv-screen-glass.is-off .crt-flicker {
+  opacity: 0;
+  animation: none;
+}
+
+/* Glossy highlight sweeping the top-left corner. */
+.screen-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    128deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.06) 14%,
+    transparent 38%
+  );
+}
+
+/* Inset shadow that fakes the bulge of the tube. */
+.screen-curve-shadow {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 40px 8px rgba(0, 0, 0, 0.55),
+    inset 0 0 120px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* ---- Side control panel ------------------------------------------------- */
+.tv-controls {
+  flex: 0 0 clamp(84px, 16vw, 132px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(12px, 2.4vw, 20px);
+  padding: clamp(10px, 2vw, 18px) 6px;
+  border-radius: 12px;
+  background: linear-gradient(
+    160deg,
+    rgba(0, 0, 0, 0.16),
+    rgba(0, 0, 0, 0.32)
+  );
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.08),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.tv-brand {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #d8b48a;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.6),
+    0 -1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Circular mechanical knob with an indicator flat. */
+.tv-knob {
+  position: relative;
+  width: clamp(38px, 8vw, 58px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 30%,
+    #e7e7e7 0%,
+    #a9a9a9 34%,
+    #5c5c5c 66%,
+    #2c2c2c 100%
+  );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.55),
+    0 3px 5px rgba(0, 0, 0, 0.5);
+  transition: transform 0.12s ease;
+}
+.tv-knob::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 12%;
+  width: 3px;
+  height: 32%;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: #1c1c1c;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}
+.tv-knob:hover {
+  transform: rotate(-16deg);
+}
+.tv-knob:active {
+  transform: rotate(20deg);
+}
+
+/* Slotted speaker grille. */
+.speaker-grille {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #14110e, #070605);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.8),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+.grille-slat {
+  height: 4px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #000, #201b16);
+  box-shadow:
+    inset 0 1px 1px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Dark-red push power button — sits depressed while the set is on, and
+   presses further on click. */
+.power-button {
+  margin-top: auto;
+  width: clamp(34px, 7vw, 46px);
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: radial-gradient(
+    circle at 38% 32%,
+    #c0433a 0%,
+    #8b1f1f 46%,
+    #571010 78%,
+    #360a0a 100%
+  );
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.25),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.6),
+    0 5px 0 #2a0808,
+    0 8px 12px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
+}
+.power-button:hover {
+  background: radial-gradient(
+    circle at 38% 32%,
+    #d24b41 0%,
+    #9a2323 46%,
+    #611313 78%,
+    #3d0b0b 100%
+  );
+}
+/* aria-label reads "Turn TV off" when the set is currently on. */
+.power-button[aria-label*='off'] {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.55),
+    0 1px 0 #2a0808,
+    0 3px 6px rgba(0, 0, 0, 0.5);
+}
+.power-button:active {
+  transform: translateY(6px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 #2a0808,
+    0 2px 5px rgba(0, 0, 0, 0.5);
+}
+.power-button:focus-visible {
+  outline: 2px solid #ff9d4d;
+  outline-offset: 3px;
+}
+
+/* ---- Responsive: drop the control panel under the screen on phones ----- */
+@media (max-width: 560px) {
+  .tv-cabinet {
+    flex-direction: column;
+  }
+  .tv-controls {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .speaker-grille {
+    flex-basis: 55%;
+  }
+  .power-button {
+    margin-top: 0;
+  }
+}
+
+/* ---- Reduced motion --------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .crt-flicker {
+    animation: none;
+  }
+  .tv-static,
+  .tv-static::after {
+    animation-duration: 1ms;
+  }
+}

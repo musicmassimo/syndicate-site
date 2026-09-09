@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import RetroPlayer from '../components/RetroPlayer'
+import RetroTvPlayer from '../RetroTvPlayer.jsx'
 
 gsap.registerPlugin(ScrollTrigger)
 ScrollTrigger.config({ ignoreMobileResize: true })
@@ -27,13 +28,6 @@ const MARQUEE_PHOTOS = [
   '/images/syndicate-photo-6-web.jpg',
   '/images/syndicate-photo-7-web.jpg',
 ]
-
-// Jukebox banner video — SYNDICATE live at Jazz Fest, from 6:12. The src is
-// only set once the banner scrolls into view (see the IntersectionObserver in
-// Home); `&autoplay=1` is appended then, and skipped for reduced motion.
-const VIDEO_EMBED =
-  'https://www.youtube.com/embed/M0e5tfIwKMU' +
-  '?mute=1&modestbranding=1&playsinline=1&iv_load_policy=3&start=372'
 
 const prefersReducedMotion = () =>
   !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -817,13 +811,7 @@ export default function Home() {
         <div className="syn-jukebox-scrim" aria-hidden="true" />
         <div className="syn-jukebox-video">
           {videoLive && (
-            <iframe
-              src={`${VIDEO_EMBED}${reduced ? '' : '&autoplay=1'}`}
-              title="SYNDICATE — Live at Jazz Fest in The Backyard (6/27/2026) — Super 8"
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              loading="lazy"
-            />
+            <RetroTvPlayer videoUrl="https://www.youtube.com/watch?v=M0e5tfIwKMU" />
           )}
         </div>
         <div className="syn-jukebox-player">
