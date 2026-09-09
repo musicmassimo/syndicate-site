@@ -25,7 +25,11 @@ export default function Home() {
     if (prefersReducedMotion() || !heroRef.current) return
     const WORD = 'SYNDICATE'
     const POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/<>*'
+    // The "I" position cycles only narrow vertical-stroke glyphs so its slot
+    // stays visually the same width all through the scramble.
+    const NARROW = 'I1!|/\\:;'
     const N = WORD.length
+    const poolAt = [...WORD].map((ch) => (ch === 'I' ? NARROW : POOL))
 
     const shuffled = () => {
       const a = [...Array(N).keys()]
@@ -39,9 +43,10 @@ export default function Home() {
     // per-flicker rebuild wiping it.
     const fill = (el: Element) => {
       el.textContent = ''
-      return Array.from(WORD, () => {
+      return Array.from(WORD, (ch) => {
         const s = document.createElement('span')
-        s.className = 'syn-slot'
+        // The "I" slot gets a narrower fixed width so it doesn't leave a gap.
+        s.className = ch === 'I' ? 'syn-slot syn-slot--i' : 'syn-slot'
         return el.appendChild(s)
       })
     }
@@ -55,6 +60,11 @@ export default function Home() {
     const titles = [
       ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-title'),
     ]
+    const img = heroRef.current.querySelector<HTMLImageElement>('.syn-hero-img')!
+    // Both the stencil plate and its outline copy — kept in row-gap sync.
+    const plates = [
+      ...heroRef.current.querySelectorAll<HTMLElement>('.syn-hero-plate'),
+    ]
     const lines = Array.from({ length: LINES }, (_, i) => ({
       rows: [fill(titles[i]), fill(titles[i + LINES])],
       order: i === MID ? [...Array(N).keys()] : shuffled(),
@@ -66,16 +76,17 @@ export default function Home() {
       lines.forEach((ln) => {
         const idx = ln.order[step]
         ln.locked.add(idx)
-        ln.rows.forEach((row) => {
-          row[idx].textContent = WORD[idx]
-          settles.push(
-            gsap.fromTo(
-              row[idx],
-              { scale: 1.3, opacity: 0.4 },
-              { scale: 1, opacity: 1, duration: 0.4, ease: 'power2.out' },
-            ),
-          )
-        })
+        // Stencil + outline span for this slot, animated as one so their
+        // letterforms stay frame-perfectly aligned.
+        const spans = ln.rows.map((row) => row[idx])
+        spans.forEach((s) => (s.textContent = WORD[idx]))
+        settles.push(
+          gsap.fromTo(
+            spans,
+            { scale: 1.3, opacity: 0.4 },
+            { scale: 1, opacity: 1, duration: 0.4, ease: 'power2.out' },
+          ),
+        )
       })
     }
 
@@ -87,19 +98,36 @@ export default function Home() {
       const now = performance.now()
       if (now - lastFlip < 80) return // ~12 glyph changes/sec, not per-frame
       lastFlip = now
-      lines.forEach((ln) =>
-        ln.rows.forEach((row) => {
-          for (let k = 0; k < N; k++)
-            if (!ln.locked.has(k))
-              row[k].textContent = POOL[(Math.random() * POOL.length) | 0]
-        }),
-      )
+      lines.forEach((ln) => {
+        for (let k = 0; k < N; k++)
+          if (!ln.locked.has(k)) {
+            const pool = poolAt[k]
+            // One glyph per slot, written to BOTH the stencil and outline span
+            // so the outline traces exactly the character the photo fills.
+            const ch = pool[(Math.random() * pool.length) | 0]
+            ln.rows.forEach((row) => (row[k].textContent = ch))
+          }
+      })
+      // Scrub the photo behind the letters in time with the glyph flicker; the
+      // amplitude fades to 0 as the letters lock, so it settles with them.
+      const t = 1 - done / N
+      img.style.transform =
+        `scale(${1 + 0.045 * t}) ` +
+        `translate(${(Math.random() * 2 - 1) * 16 * t}px, ` +
+        `${(Math.random() * 2 - 1) * 16 * t}px)`
     }
+
+    // Rows start spread apart (row-gap 22px) and ease flush once locked. The
+    // proxy + onUpdate guarantees a smooth interpolation; CSS gap 0 is the
+    // reduced-motion / resting value.
+    const gp = { v: 22 }
+    const applyGap = () => plates.forEach((el) => (el.style.rowGap = `${gp.v}px`))
+    applyGap()
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         onComplete: () => {
-          titles.forEach((el) => (el.textContent = WORD))
+          img.style.transform = ''
           setIntroDone(true)
         },
       })
@@ -115,7 +143,14 @@ export default function Home() {
           { step: N, duration: N * 0.7, ease: `steps(${N})`, onUpdate: tick },
           0.6,
         )
-        .to({}, { duration: 0.4 }) // let the last letter's settle finish
+        // Once every letter is locked: rows ease flush and the photo eases to
+        // rest, together.
+        .to(gp, { v: 0, duration: 0.6, ease: 'power2.out', onUpdate: applyGap })
+        .to(
+          '.syn-hero-img',
+          { scale: 1, x: 0, y: 0, duration: 0.6, ease: 'power2.out' },
+          '<',
+        )
     }, heroRef)
     return () => {
       ctx.revert()

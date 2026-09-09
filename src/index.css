@@ -88,12 +88,18 @@ body {
 }
 
 /* Fixed-width slot for the code-cracking scramble (see Home.tsx) — the block
-   stays put while glyphs of differing widths cycle inside. Only present during
-   the intro; the settled title is plain text, so its kerning is untouched. */
+   never reflows while glyphs of differing widths cycle inside, and the slots
+   stay in place at the settled state too. */
 .syn-slot {
   display: inline-block;
   width: 0.72em;
   text-align: center;
+}
+/* The "I" is a thin vertical bar; a full-width slot would leave a visible gap
+   on each side, so it gets a proportionally narrower fixed width. Its scramble
+   pool is all narrow glyphs, so nothing meaningful overflows. */
+.syn-slot--i {
+  width: 0.38em;
 }
 
 /* Definition pass: a second copy of the title above the static, contributing
