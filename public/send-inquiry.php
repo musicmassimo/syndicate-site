@@ -57,7 +57,7 @@ $html = '<table>' . $table . '</table>'
 
 $payload = [
     'sender'      => ['name' => 'Syndicate site', 'email' => 'syndicatebookings@massimopaparello.com'],
-    'to'          => [['email' => 'syndicatebookings@massimopaparello.com']],
+    'to'          => [['email' => 'bookings@syndicatejazz.com']],
     'replyTo'     => ['email' => $email, 'name' => $name],
     'subject'     => 'Booking inquiry — ' . ($rows['Event type'] !== '' ? $rows['Event type'] : 'general'),
     'htmlContent' => $html,
