@@ -329,7 +329,11 @@ body {
   flex-direction: column;
   gap: 12px;
   font-size: clamp(13px, 1.6vw, 16px);
+  font-weight: 700;
   color: rgba(255, 255, 255, 0.92);
+  /* Heavier than the shared panel shadow so the names pop off the photo:
+     a tight dense layer for edge definition plus a wide blurred glow. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 3px 16px rgba(0, 0, 0, 0.85);
 }
 
 .syn-about--static .syn-about-stage {
