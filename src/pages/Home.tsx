@@ -1081,14 +1081,6 @@ export default function Home() {
           )}
         </form>
       </section>
-
-      <hr className="syn-rule" />
-
-      <section className="syn-section" style={{ textAlign: 'center' }}>
-        <p className="syn-heading" style={{ marginInline: 'auto' }}>
-          Los Angeles Jazz Quintet — led by Massimo Paparello
-        </p>
-      </section>
     </>
   )
 }
