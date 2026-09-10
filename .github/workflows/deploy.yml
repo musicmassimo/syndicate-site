@@ -18,21 +18,19 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
 
-      # Uploads the contents of dist/ (which includes send-inquiry.php, copied
-      # verbatim from public/) to Hostinger over FTP. Only .git* and
-      # node_modules are excluded — every other file type, .php included, ships.
-      - name: FTP deploy
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
-          # The FTP account lands directly in the domain's document root, so
-          # the build is uploaded there as-is. (If the hosting docroot is ever
-          # repointed at a public_html/ subfolder, change this back to that.)
-          server-dir: ./
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
+      # rsync the build to the domain's document root over SSH. Absolute target
+      # path — no FTP landing-dir guesswork. --delete keeps the server an exact
+      # mirror of dist/; brevo-config.php lives one level ABOVE this path so it
+      # is untouched. error_log is PHP's runtime log, kept.
+      - name: Deploy over SSH (rsync)
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          rsync -rlvz --delete \
+            --exclude='error_log' \
+            --exclude='.ftp-deploy-sync-state.json' \
+            -e "ssh -i ~/.ssh/deploy_key -p 65002 -o UserKnownHostsFile=~/.ssh/known_hosts" \
+            ./dist/ \
+            u158221593@46.202.196.3:/home/u158221593/domains/syndicatejazz.com/public_html/
