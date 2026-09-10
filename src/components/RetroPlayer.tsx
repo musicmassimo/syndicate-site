@@ -14,6 +14,11 @@ export default function RetroPlayer() {
     <MediaPlayer
       className="syn-player"
       playlist={playlist}
+      // Cassette defaults to a <video> element mounted in a display:none
+      // container. iOS Safari silently refuses to play a hidden <video>, so
+      // tapping Play did nothing on phones. An <audio> element plays fine
+      // while hidden. (We never show video anyway.)
+      createMediaElement={() => document.createElement('audio')}
       getDisplayText={(track) =>
         track ? `${track.title} — ${track.artist}` : 'SYNDICATE'
       }
