@@ -759,6 +759,84 @@ export default function Home() {
     }
   }, [])
 
+  // Hover (mouse) or tap (touch) the Booking title to scramble it, over 3s,
+  // into "Contact" — and back to "Booking" on the next hover/tap. Same
+  // glyph-settle technique as the scramble-in above.
+  useEffect(() => {
+    const el = bookHeadingRef.current
+    if (!el) return
+
+    const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/<>*+=:·'
+    const WORDS = ['Booking', 'Contact']
+    const DURATION = 3000
+    let idx = 0
+    let raf = 0
+    let lastToggle = 0
+
+    // Re-triggering mid-scramble just retargets — no lock flag to get stuck.
+    const scrambleTo = (target: string) => {
+      cancelAnimationFrame(raf)
+      const start = performance.now()
+      const tick = (now: number) => {
+        const p = Math.min((now - start) / DURATION, 1)
+        if (p >= 1) {
+          el.textContent = target
+          return
+        }
+        const settled = p * target.length * 1.12
+        let out = ''
+        for (let i = 0; i < target.length; i++) {
+          out +=
+            i <= settled || target[i] === ' '
+              ? target[i]
+              : GLYPHS[(Math.random() * GLYPHS.length) | 0]
+        }
+        el.textContent = out
+        raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    const toggle = () => {
+      // Swallow enter/leave/enter flurries from layout shifting under a still
+      // cursor; a deliberate re-hover is never this fast.
+      const now = performance.now()
+      if (now - lastToggle < 400) return
+      lastToggle = now
+      idx = 1 - idx
+      if (prefersReducedMotion()) {
+        cancelAnimationFrame(raf)
+        el.textContent = WORDS[idx]
+        return
+      }
+      scrambleTo(WORDS[idx])
+    }
+
+    // A real hover always comes with pointer movement; a heading sliding under
+    // a still cursor while scrolling fires pointerenter with no recent move —
+    // ignore that so the swap only happens on a deliberate hover.
+    let lastMove = 0
+    const onMove = () => {
+      lastMove = performance.now()
+    }
+    const onEnter = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' && performance.now() - lastMove < 120) toggle()
+    }
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') toggle()
+    }
+
+    document.addEventListener('pointermove', onMove, { passive: true })
+    el.addEventListener('pointerenter', onEnter)
+    el.addEventListener('pointerdown', onDown)
+    return () => {
+      document.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerenter', onEnter)
+      el.removeEventListener('pointerdown', onDown)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
   const reduced = prefersReducedMotion()
 
   return (
@@ -897,7 +975,14 @@ export default function Home() {
       <hr className="syn-rule" />
 
       <section className="syn-section" id="booking">
-        <p className="syn-heading syn-heading--lg" ref={bookHeadingRef}>Booking</p>
+        <p
+          className="syn-heading syn-heading--lg"
+          ref={bookHeadingRef}
+          aria-label="Booking"
+          style={{ cursor: 'pointer', userSelect: 'none', touchAction: 'manipulation' }}
+        >
+          Booking
+        </p>
         <form className="syn-form" onSubmit={handleBookingSubmit}>
           <div className="syn-field">
             <label className="syn-label" htmlFor="book-name">Name</label>
