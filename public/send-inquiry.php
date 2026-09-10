@@ -56,7 +56,7 @@ $html = '<table>' . $table . '</table>'
     . '<p style="white-space:pre-wrap">' . nl2br(htmlspecialchars($details)) . '</p>';
 
 $payload = [
-    'sender'      => ['name' => 'Syndicate site', 'email' => 'syndicatebookings@massimopaparello.com'],
+    'sender'      => ['name' => 'Syndicate site', 'email' => 'bookings@syndicatejazz.com'],
     'to'          => [['email' => 'bookings@syndicatejazz.com']],
     'replyTo'     => ['email' => $email, 'name' => $name],
     'subject'     => 'Booking inquiry — ' . ($rows['Event type'] !== '' ? $rows['Event type'] : 'general'),
