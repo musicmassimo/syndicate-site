@@ -764,7 +764,7 @@ export default function Home() {
   return (
     <>
       {/* Stencil header — the photo blends through the letterforms. */}
-      <section className="syn-hero" ref={heroRef}>
+      <section className="syn-hero" id="home" ref={heroRef}>
         <img
           className="syn-hero-img"
           src="/images/syndicate-header.jpg"
@@ -810,6 +810,7 @@ export default function Home() {
       {/* Pinned scroll-reveal: bio, then three full-bleed photos. */}
       <section
         className={`syn-about${reduced ? ' syn-about--static' : ''}`}
+        id="about"
         ref={aboutRef}
       >
         <div className="syn-about-stage" ref={stageRef}>
@@ -867,7 +868,7 @@ export default function Home() {
 
       {/* Retro jukebox strip: right-to-left photo marquee background under a
           dark scrim; live video left, Win95 media player right. */}
-      <section className="syn-jukebox" ref={jukeboxRef}>
+      <section className="syn-jukebox" id="music" ref={jukeboxRef}>
         <div className="syn-jukebox-marquee" aria-hidden="true">
           <div className="syn-jukebox-marquee-track">
             {[...MARQUEE_PHOTOS, ...MARQUEE_PHOTOS].map((src, i) => (
@@ -895,7 +896,7 @@ export default function Home() {
 
       <hr className="syn-rule" />
 
-      <section className="syn-section" id="book">
+      <section className="syn-section" id="booking">
         <p className="syn-heading syn-heading--lg" ref={bookHeadingRef}>Booking</p>
         <form className="syn-form" onSubmit={handleBookingSubmit}>
           <div className="syn-field">
